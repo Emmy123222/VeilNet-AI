@@ -31,7 +31,7 @@ export default function HomePage() {
       <header className="border-b border-border/40 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Shield className="h-8 w-8 text-primary" />
+            <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-8 w-8 object-contain" />
             <span className="text-2xl font-bold">VeilNet AI</span>
           </div>
           <div className="flex items-center space-x-4">
@@ -84,7 +84,7 @@ export default function HomePage() {
             <Card className="mb-12 text-center">
               <CardHeader>
                 <CardTitle className="flex items-center justify-center">
-                  <Shield className="h-5 w-5 mr-2" />
+                  <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-5 w-5 mr-2 object-contain" />
                   Connect Your Leo Wallet
                 </CardTitle>
                 <CardDescription>

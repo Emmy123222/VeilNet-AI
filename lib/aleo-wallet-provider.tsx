@@ -3,14 +3,9 @@
 import React from 'react'
 import { WalletProvider } from '@demox-labs/aleo-wallet-adapter-react'
 import { LeoWalletAdapter } from '@demox-labs/aleo-wallet-adapter-leo'
-
-declare global {
-  interface Window {
-    leoWallet?: any; // You can replace 'any' with a more specific type if available
-  }
-}
 import { WalletModalProvider } from '@demox-labs/aleo-wallet-adapter-reactui'
 import { WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
+import type { Adapter } from '@demox-labs/aleo-wallet-adapter-base'
 
 // Import styles
 import '@demox-labs/aleo-wallet-adapter-reactui/styles.css'
@@ -20,56 +15,62 @@ interface AleoWalletProviderProps {
 }
 
 export default function AleoWalletProvider({ children }: AleoWalletProviderProps) {
-  // Create wallets array with error handling
-  const wallets = React.useMemo(() => {
+  // Create wallets array with proper typing and error handling
+  const wallets = React.useMemo((): Adapter[] => {
     try {
-      console.log('Creating Leo Wallet Adapter...')
+      console.log('🔄 Creating Leo Wallet Adapter...')
+      
       const leoWallet = new LeoWalletAdapter({
         appName: 'VeilNet AI',
       })
-      console.log('Leo Wallet Adapter created successfully')
+      
+      console.log('✅ Leo Wallet Adapter created successfully')
       return [leoWallet]
     } catch (error) {
-      console.error('Error creating wallet adapters:', error)
+      console.error('❌ Error creating wallet adapters:', error)
+      // Return empty array instead of placeholder to avoid type issues
       return []
     }
   }, [])
 
   // Enhanced error handler with better error messages
   const handleError = React.useCallback((error: any) => {
+    console.group('🚨 Wallet Provider Error')
+    
     const errorDetails = {
       message: error?.message || 'No error message provided',
       name: error?.name || 'UnknownError',
       stack: error?.stack,
-      error: error?.toString()
+      error: error?.toString(),
+      code: error?.code,
     }
     
-    console.error('Wallet Provider Error Details:', errorDetails)
+    console.error('Error Details:', errorDetails)
     
     // Enhanced error handling with more specific messages
-    const errorMessage = (() => {
-      if (error?.message?.includes('NETWORK_NOT_GRANTED')) {
-        return 'Please grant network access in your Leo Wallet settings';
-      } else if (error?.message?.includes('unknown error') || !window.leoWallet) {
-        return 'Please ensure the Leo Wallet extension is installed and enabled';
-      } else if (error?.message?.includes('User rejected')) {
-        return 'Connection was rejected. Please try again and approve the connection in your wallet';
-      } else if (error?.message?.includes('network')) {
-        return 'Network error. Please check your connection and try again';
-      }
-      return 'Failed to connect to wallet. Please try again or contact support if the issue persists';
-    })();
+    let userFriendlyMessage = 'Failed to connect to wallet. '
     
-    console.log('User-friendly error:', errorMessage);
-    
-    // Optionally show this to the user via a toast or alert
-    if (typeof window !== 'undefined') {
-      // You can replace this with your preferred notification system
-      alert(`Wallet Error: ${errorMessage}`);
+    if (error?.message?.includes('NETWORK_NOT_GRANTED')) {
+      userFriendlyMessage += 'Please grant network access in your Leo Wallet settings.'
+      console.log('💡 Solution: Grant network access in Leo Wallet')
+    } else if (error?.message?.includes('unknown error')) {
+      userFriendlyMessage += 'Please ensure Leo Wallet is installed and on Testnet Beta network.'
+      console.log('💡 Solution: Install Leo Wallet and switch to Testnet Beta')
+    } else if (error?.message?.includes('User rejected')) {
+      userFriendlyMessage = 'Connection was rejected. Please try again and approve the connection.'
+      console.log('💡 Solution: User needs to approve the connection')
+    } else {
+      userFriendlyMessage += 'Please try again or install Leo Wallet if not already installed.'
+      console.log('💡 Solution: Check Leo Wallet installation and try again')
     }
+    
+    console.log('📢 User-friendly error:', userFriendlyMessage)
+    console.groupEnd()
+    
+    // Don't re-throw the error to prevent app crashes
   }, [])
 
-  console.log('Rendering WalletProvider with', wallets.length, 'wallets')
+  console.log('🎯 Rendering WalletProvider with', wallets.length, 'wallets')
 
   return (
     <WalletProvider

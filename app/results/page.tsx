@@ -118,7 +118,7 @@ export default function ResultsPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
+            <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-12 w-12 mx-auto mb-4 object-contain" />
             <CardTitle>Connect Your Wallet</CardTitle>
             <CardDescription>
               You need to connect your Aleo wallet to view your analysis results.
@@ -146,7 +146,7 @@ export default function ResultsPage() {
               Back
             </Button>
             <div className="flex items-center space-x-2">
-              <Shield className="h-6 w-6 text-primary" />
+              <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-6 w-6 object-contain" />
               <span className="text-xl font-bold">VeilNet AI</span>
             </div>
           </div>

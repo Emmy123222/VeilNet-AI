@@ -110,7 +110,7 @@ export default function VerifyProofPage() {
               Back
             </Button>
             <div className="flex items-center space-x-2">
-              <Shield className="h-6 w-6 text-primary" />
+              <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-6 w-6 object-contain" />
               <span className="text-xl font-bold">VeilNet AI</span>
             </div>
           </div>
