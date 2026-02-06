@@ -221,19 +221,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
-
-- **Website**: [https://veilnet-ai.vercel.app](https://veilnet-ai.vercel.app)
-- **Documentation**: [https://docs.veilnet.ai](https://docs.veilnet.ai)
-- **Aleo Network**: [https://aleo.org](https://aleo.org)
-- **Leo Wallet**: [https://leo.app](https://leo.app)
-
-## 📞 Support
-
-- **Discord**: [VeilNet Community](https://discord.gg/veilnet)
-- **Twitter**: [@VeilNetAI](https://twitter.com/VeilNetAI)
-- **Email**: support@veilnet.ai
 
 ---
 
-**Built with ❤️ for the Aleo ecosystem and privacy-first AI**
+**Built with  for the Aleo ecosystem and privacy-first AI**
