@@ -56,29 +56,39 @@ function VerifyProofContent() {
     setVerification(null)
 
     try {
-      // Simulate verification process
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Call real verification API
+      const response = await fetch('/api/proofs/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proofHash: hashToVerify })
+      })
 
-      // Mock verification result
-      const mockVerification: ProofVerification = {
-        hash: hashToVerify,
-        status: 'verified',
-        timestamp: new Date().toISOString(),
-        blockHeight: Math.floor(Math.random() * 1000000) + 500000,
-        transactionId: '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-        analysisType: 'Document Risk Assessment',
-        resultHash: '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Verification failed')
+      }
+
+      // Map API response to ProofVerification format
+      const verification: ProofVerification = {
+        hash: data.verification.proofHash,
+        status: data.verification.status,
+        timestamp: data.verification.timestamp,
+        blockHeight: data.verification.blockHeight,
+        transactionId: data.verification.proofHash, // Use proof hash as transaction ID
+        analysisType: 'Document Analysis',
+        resultHash: data.verification.proofHash,
         publicInputs: [
-          'analysis_type: document_risk',
-          'confidence_score: 85',
-          'timestamp: ' + Math.floor(Date.now() / 1000),
-          'user_address: ' + (connected ? 'aleo1...' : 'anonymous')
+          `status: ${data.verification.status}`,
+          `verified_by: ${data.verification.verifiedBy}`,
+          `block_height: ${data.verification.blockHeight}`,
+          `timestamp: ${data.verification.timestamp}`
         ]
       }
 
-      setVerification(mockVerification)
-    } catch (err) {
-      setError('Failed to verify proof. Please check the hash and try again.')
+      setVerification(verification)
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify proof. Please check the hash and try again.')
     } finally {
       setVerifying(false)
     }

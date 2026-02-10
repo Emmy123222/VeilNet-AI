@@ -1,0 +1,63 @@
+Warning [WTYC0372004]: `self.caller` used as the owner of record `AnalysisProof`
+    --> /home/emmanuel/Downloads/veil-net-ai-infrastructure/contracts/src/main.leo:46:20
+     |
+  46 |             owner: self.caller,
+     |                    ^^^^^^^^^^^
+     |
+     = `self.caller` may refer to a program address, which cannot spend records.
+
+       Leo     18 statements before dead code elimination.
+       Leo     18 statements after dead code elimination.
+       Leo     The program checksum is: '[246u8, 150u8, 185u8, 200u8, 233u8, 11u8, 6u8, 28u8, 27u8, 199u8, 123u8, 22u8, 156u8, 27u8, 212u8, 212u8, 5u8, 140u8, 108u8, 160u8, 131u8, 123u8, 125u8, 214u8, 17u8, 175u8, 228u8, 26u8, 249u8, 239u8, 251u8, 48u8]'.
+       Leo ✅ Compiled 'veilnet_ai.aleo' into Aleo instructions.
+
+📢 Using the following consensus heights: 0,2950000,4800000,6625000,6765000,7600000,8365000,9173000,9800000,10525000,11952000,12669000
+  To override, pass in `--consensus-heights` or override the environment variable `CONSENSUS_VERSION_HEIGHTS`.
+
+Attempting to determine the consensus version from the latest block height at https://api.explorer.provable.com/v1...
+
+🛠️  Deployment Plan Summary
+──────────────────────────────────────────────
+🔧 Configuration:
+  Private Key:        APrivateKey1zkp8346GLnHm...
+  Address:            aleo1nzlm0f9sd3kglpv3wc2...
+  Endpoint:           https://api.explorer.provable.com/v1
+  Network:            testnet
+  Consensus Version:  12
+
+📦 Deployment Tasks:
+  • veilnet_ai.aleo  │ priority fee: 0  │ fee record: no (public fee)
+
+⚙️ Actions:
+  • Transaction(s) will NOT be printed to the console.
+  • Transaction(s) will NOT be saved to a file.
+  • Transaction(s) will be broadcast to https://api.explorer.provable.com/v1
+
+⚠️ Warnings:
+  • The program 'veilnet_ai.aleo' does not contain a constructor. The deployment will likely fail
+──────────────────────────────────────────────
+
+📦 Creating deployment transaction for 'veilnet_ai.aleo'...
+
+
+📊 Deployment Summary for veilnet_ai.aleo
+──────────────────────────────────────────────
+  Total Variables:      86,340
+  Total Constraints:    66,840
+  Max Variables:        2,097,152
+  Max Constraints:      2,097,152
+
+💰 Cost Breakdown (credits)
+  Transaction Storage:  2.910000
+  Program Synthesis:    0.153180
+  Namespace:            1.000000
+  Constructor:          0.000000
+  Priority Fee:         0.000000
+  Total Fee:            4.063180
+──────────────────────────────────────────────
+
+📡 Broadcasting deployment for veilnet_ai.aleo...
+💰Your current public balance is 20 credits.
+
+Error [ECLI0377032]: Failed to broadcast transaction: http status: 500
+
