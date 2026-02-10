@@ -1,0 +1,54 @@
+       Leo     20 statements before dead code elimination.
+       Leo     20 statements after dead code elimination.
+       Leo     The program checksum is: '[251u8, 156u8, 119u8, 130u8, 115u8, 107u8, 215u8, 89u8, 176u8, 183u8, 66u8, 145u8, 199u8, 171u8, 103u8, 138u8, 178u8, 199u8, 81u8, 133u8, 248u8, 78u8, 213u8, 246u8, 168u8, 1u8, 23u8, 105u8, 139u8, 37u8, 84u8, 210u8]'.
+       Leo ✅ Compiled 'veilnet_ai.aleo' into Aleo instructions.
+
+📢 Using the following consensus heights: 0,2950000,4800000,6625000,6765000,7600000,8365000,9173000,9800000,10525000,11952000,12669000
+  To override, pass in `--consensus-heights` or override the environment variable `CONSENSUS_VERSION_HEIGHTS`.
+
+
+🛠️  Deployment Plan Summary
+──────────────────────────────────────────────
+🔧 Configuration:
+  Private Key:        APrivateKey1zkp8346GLnHm...
+  Address:            aleo1nzlm0f9sd3kglpv3wc2...
+  Endpoint:           https://api.explorer.provable.com/v1
+  Network:            testnet
+  Consensus Version:  12
+
+📦 Deployment Tasks:
+  • veilnet_ai.aleo  │ priority fee: 0  │ fee record: no (public fee)
+
+⚙️ Actions:
+  • Transaction(s) will NOT be printed to the console.
+  • Transaction(s) will NOT be saved to a file.
+  • Transaction(s) will be broadcast to https://api.explorer.provable.com/v1
+
+⚠️ Warnings:
+  • The program 'veilnet_ai.aleo' does not contain a constructor. The deployment will likely fail
+──────────────────────────────────────────────
+
+📦 Creating deployment transaction for 'veilnet_ai.aleo'...
+
+
+📊 Deployment Summary for veilnet_ai.aleo
+──────────────────────────────────────────────
+  Total Variables:      87,680
+  Total Constraints:    68,146
+  Max Variables:        2,097,152
+  Max Constraints:      2,097,152
+
+💰 Cost Breakdown (credits)
+  Transaction Storage:  2.944000
+  Program Synthesis:    0.155826
+  Namespace:            1.000000
+  Constructor:          0.000000
+  Priority Fee:         0.000000
+  Total Fee:            4.099826
+──────────────────────────────────────────────
+
+📡 Broadcasting deployment for veilnet_ai.aleo...
+💰Your current public balance is 20 credits.
+
+Error [ECLI0377032]: Failed to broadcast transaction: http status: 500
+

@@ -4,6 +4,7 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
 
 ## 🚀 Features
 
+- **Real AI Analysis**: Powered by OpenAI GPT-4o-mini for genuine document analysis
 - **Private AI Inference**: Run AI models on encrypted data without exposing sensitive information
 - **Zero-Knowledge Proofs**: Cryptographic verification of AI analysis without revealing input data
 - **Aleo Blockchain Integration**: Immutable proof storage and verification on Aleo network
@@ -59,14 +60,26 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
    pnpm install
    ```
 
-3. **Run the development server**
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Edit `.env.local` and add your OpenAI API key:
+   ```env
+   OPENAI_API_KEY=sk-your-openai-api-key-here
+   ```
+   
+   Get your API key from: https://platform.openai.com/api-keys
+
+4. **Run the development server**
    ```bash
    npm run dev
    # or
    pnpm dev
    ```
 
-4. **Open your browser**
+5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ### Wallet Setup
