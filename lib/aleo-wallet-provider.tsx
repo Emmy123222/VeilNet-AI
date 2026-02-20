@@ -78,7 +78,7 @@ export default function AleoWalletProvider({ children }: AleoWalletProviderProps
     <WalletProvider
       wallets={wallets}
       network={WalletAdapterNetwork.TestnetBeta} // Correct and current for testnet
-      autoConnect={false}
+      autoConnect={true} // Enable auto-connect for persistence
       onError={handleError}
     >
       <WalletModalProvider>

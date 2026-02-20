@@ -1,110 +1,140 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { analyzeDocument, analyzeFile } from '@/lib/ai-service'
 import { createHash } from 'crypto'
-import { analyzeDocument } from '@/lib/ai-service'
+import { rateLimit, rateLimitConfigs, createRateLimitHeaders } from '@/lib/rate-limiter'
+
+// Input sanitization
+function sanitizeInput(text: string): string {
+  if (typeof text !== 'string') {
+    throw new Error('Invalid input: text must be a string')
+  }
+  
+  // Remove potential script tags and other dangerous content
+  const sanitized = text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+  
+  // Limit length to prevent abuse
+  const maxLength = 50000 // 50KB of text
+  if (sanitized.length > maxLength) {
+    return sanitized.substring(0, maxLength) + '\n[Content truncated for security]'
+  }
+  
+  return sanitized.trim()
+}
+
+// Abuse detection
+function detectAbuse(text: string, userAgent?: string): string | null {
+  // Check for suspicious patterns
+  const suspiciousPatterns = [
+    /(.)\1{100,}/, // Repeated characters (potential spam)
+    /[^\x00-\x7F]{1000,}/, // Too many non-ASCII characters
+    /(test|spam|abuse|attack){10,}/i, // Repeated test/spam words
+  ]
+  
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(text)) {
+      return 'Suspicious content pattern detected'
+    }
+  }
+  
+  // Check for automated requests
+  if (userAgent && /bot|crawler|spider|scraper/i.test(userAgent)) {
+    return 'Automated requests not allowed'
+  }
+  
+  return null
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Groq API key is configured
-    if (!process.env.GROQ_API_KEY) {
-      console.error('❌ GROQ_API_KEY not found in environment')
+    // Apply rate limiting
+    const rateLimitResult = rateLimit(rateLimitConfigs.aiAnalysis)(request)
+    const headers = createRateLimitHeaders(rateLimitResult)
+    
+    if (!rateLimitResult.success) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'AI service not configured. Please set GROQ_API_KEY in .env.local and restart the dev server. Get free API key from: https://console.groq.com/keys' 
-        },
-        { status: 500 }
+        { success: false, error: rateLimitResult.error },
+        { status: 429, headers }
       )
     }
 
-    console.log('✅ Groq API key found, length:', process.env.GROQ_API_KEY.length)
+    const { text, analysisType } = await request.json()
 
-    const { documentText } = await request.json()
-
-    if (!documentText || typeof documentText !== 'string') {
+    if (!text) {
       return NextResponse.json(
-        { success: false, error: 'Invalid document text' },
-        { status: 400 }
+        { success: false, error: 'Text content is required' },
+        { status: 400, headers }
       )
     }
 
-    if (documentText.length < 10) {
+    // Sanitize input
+    let sanitizedText: string
+    try {
+      sanitizedText = sanitizeInput(text)
+    } catch (error: any) {
       return NextResponse.json(
-        { success: false, error: 'Document text too short' },
-        { status: 400 }
+        { success: false, error: error.message },
+        { status: 400, headers }
       )
     }
 
-    // Generate document hash
-    const documentHash = createHash('sha256')
-      .update(documentText)
+    // Detect abuse
+    const userAgent = request.headers.get('user-agent')
+    const abuseDetection = detectAbuse(sanitizedText, userAgent || undefined)
+    if (abuseDetection) {
+      return NextResponse.json(
+        { success: false, error: abuseDetection },
+        { status: 400, headers }
+      )
+    }
+
+    // Validate minimum content length
+    if (sanitizedText.length < 10) {
+      return NextResponse.json(
+        { success: false, error: 'Text content too short for analysis' },
+        { status: 400, headers }
+      )
+    }
+
+    // Generate document hash for integrity verification
+    const documentHash = '0x' + createHash('sha256')
+      .update(sanitizedText)
       .digest('hex')
 
-    // Use real AI to analyze document (Groq - FREE!)
-    const aiAnalysis = await analyzeDocument(documentText)
+    // Perform AI analysis
+    const analysis = analysisType 
+      ? await analyzeFile(sanitizedText, analysisType)
+      : await analyzeDocument(sanitizedText)
 
-    // Calculate word and character counts
-    const wordCount = documentText.trim().split(/\s+/).length
-    const charCount = documentText.length
-
-    const analysis = {
-      documentHash: '0x' + documentHash,
-      riskScore: aiAnalysis.riskScore,
-      summary: aiAnalysis.summary,
-      insights: aiAnalysis.insights,
-      categories: aiAnalysis.categories,
-      timestamp: Math.floor(Date.now() / 1000),
-      wordCount,
-      charCount
+    // Add metadata
+    const result = {
+      ...analysis,
+      documentHash,
+      timestamp: new Date().toISOString(),
+      analysisType: analysisType || 'document-risk',
+      textLength: sanitizedText.length,
+      processingTime: Date.now() // Will be calculated on client side
     }
 
     return NextResponse.json({
       success: true,
-      analysis
-    })
+      analysis: result
+    }, { headers })
 
   } catch (error: any) {
-    console.error('❌ Analysis error:', error)
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    })
+    console.error('Analysis error:', error)
     
-    // Check if API key is configured
-    if (!process.env.GROQ_API_KEY) {
-      console.error('❌ GROQ_API_KEY is not set in environment variables')
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'AI service not configured. GROQ_API_KEY environment variable is missing. Get free key from: https://console.groq.com/keys' 
-        },
-        { status: 500 }
-      )
-    }
+    // Don't expose internal errors to client
+    const isAIError = error.message?.includes('API') || error.message?.includes('model')
+    const errorMessage = isAIError 
+      ? 'AI service temporarily unavailable. Please try again.'
+      : 'Analysis failed. Please check your input and try again.'
     
-    // Provide helpful error messages
-    if (error.message?.includes('GROQ_API_KEY') || error.message?.includes('API key')) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Invalid Groq API key. Please check your .env.local file and restart the dev server.' 
-        },
-        { status: 500 }
-      )
-    }
-
-    if (error.message?.includes('rate limit')) {
-      return NextResponse.json(
-        { success: false, error: 'Groq rate limit exceeded. Please try again in a moment.' },
-        { status: 429 }
-      )
-    }
-
     return NextResponse.json(
-      { 
-        success: false, 
-        error: `Analysis failed: ${error.message || 'Unknown error'}. Check server logs for details.` 
-      },
+      { success: false, error: errorMessage },
       { status: 500 }
     )
   }

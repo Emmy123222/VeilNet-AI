@@ -5,7 +5,7 @@ import {
   WalletAdapterNetwork,
 } from '@demox-labs/aleo-wallet-adapter-base';
 
-const DEFAULT_FEE_MICRO_CREDITS = 5_000_000; // 5 credits – adjust if needed
+const DEFAULT_FEE_MICRO_CREDITS = 1_000_000; // 1 credit - reduced for testnet
 
 // Aleo field prime (for field type conversion)
 const FIELD_PRIME = BigInt('8444461749428370424248824938781546531375899830566350301575494140362904909311');
@@ -15,9 +15,24 @@ const FIELD_PRIME = BigInt('8444461749428370424248824938781546531375899830566350
  */
 function hexToFieldDecimal(hex: string): string {
   const cleanHex = hex.replace(/^0x/i, '');
+  
+  // Validate hex string
+  if (!/^[0-9a-fA-F]+$/.test(cleanHex)) {
+    throw new Error(`Invalid hex string: ${hex}`);
+  }
+  
+  // Ensure hex is not too long (max 64 characters for 256-bit)
+  if (cleanHex.length > 64) {
+    throw new Error(`Hex string too long: ${cleanHex.length} characters (max 64)`);
+  }
+  
   let val = BigInt(`0x${cleanHex}`);
   val = val % FIELD_PRIME;
-  return val.toString();
+  
+  const result = val.toString();
+  console.log(`🔢 Hex conversion: ${hex} -> ${result}`);
+  
+  return result;
 }
 
 /**
@@ -25,6 +40,7 @@ function hexToFieldDecimal(hex: string): string {
  * @param params - Destructured params from useWallet()
  */
 export async function submitToAleo({
+  requestExecution,
   requestTransaction,
   requestRecords,
   documentHash,
@@ -32,15 +48,18 @@ export async function submitToAleo({
   timestamp,
   publicKey,
 }: {
-  requestTransaction: (tx: Transaction) => Promise<string>;
+  requestExecution?: (tx: Transaction) => Promise<string>;
+  requestTransaction?: (tx: Transaction) => Promise<string>;
   requestRecords?: (program: string) => Promise<any[]>;
   documentHash: string;
   riskScore: number;
   timestamp: number;
   publicKey: string;
 }): Promise<string> {
-  if (!requestTransaction || typeof requestTransaction !== 'function') {
-    throw new Error('requestTransaction function is not available. Wallet may not be properly connected.');
+  // Use requestExecution for program transitions (execute); requestTransaction is for transfers
+  const execute = requestExecution ?? requestTransaction;
+  if (!execute || typeof execute !== 'function') {
+    throw new Error('requestExecution/requestTransaction not available. Wallet may not be properly connected.');
   }
 
   if (!publicKey) {
@@ -76,24 +95,17 @@ export async function submitToAleo({
           feeRecord = usableRecords[0].plaintext || usableRecords[0];
           console.log('✅ Using fee record with', usableRecords[0].microcredits, 'microcredits');
         } else {
-          console.warn('⚠️ No usable records found. Need at least', DEFAULT_FEE_MICRO_CREDITS, 'microcredits');
-          throw new Error(
-            `Insufficient balance. You need at least ${DEFAULT_FEE_MICRO_CREDITS / 1_000_000} credits. ` +
-            `Get testnet credits from: https://faucet.aleo.org/`
-          );
+          console.warn('⚠️ No usable records found, but continuing - wallet may handle fees automatically');
+          // Don't throw error here - let the wallet handle it
         }
       } else {
-        console.warn('⚠️ No records found in wallet');
-        throw new Error(
-          'No credit records found. Get testnet credits from: https://faucet.aleo.org/'
-        );
+        console.warn('⚠️ No records returned, but continuing - wallet may handle fees automatically');
+        // Don't throw error here - let the wallet handle it
       }
     } catch (error: any) {
       console.error('❌ Failed to fetch records:', error);
-      if (error.message.includes('Insufficient balance') || error.message.includes('No credit records')) {
-        throw error;
-      }
-      console.warn('⚠️ Continuing without explicit fee record (wallet may handle it)');
+      console.warn('⚠️ Continuing without explicit fee record - wallet will handle fees automatically');
+      // Don't throw error here - the wallet adapter should handle fees automatically
     }
   } else {
     console.warn('⚠️ requestRecords not available, wallet will handle fee automatically');
@@ -103,8 +115,21 @@ export async function submitToAleo({
   console.log('   Risk score:', riskScore);
   console.log('   Timestamp:', timestamp);
 
+  // Validate inputs
+  if (riskScore < 0 || riskScore > 100) {
+    throw new Error(`Invalid risk score: ${riskScore}. Must be between 0 and 100.`);
+  }
+  
+  if (timestamp <= 0) {
+    throw new Error(`Invalid timestamp: ${timestamp}. Must be positive.`);
+  }
+
   // Clean the hash (remove 0x prefix if present)
   const cleanHash = documentHash.replace(/^0x/i, '');
+  
+  if (cleanHash.length !== 64) {
+    throw new Error(`Invalid document hash length: ${cleanHash.length}. Expected 64 hex characters.`);
+  }
 
   // Convert hex hashes to decimal field values (required for field type in Leo)
   const inputHashField = hexToFieldDecimal(cleanHash);
@@ -116,18 +141,21 @@ export async function submitToAleo({
   console.log('   Length check:', inputHashField.length, 'digits');
 
   // Leo field literals require the 'field' suffix
-  // Signature: submit_analysis(input_hash: field, ai_output_hash: field, ai_score: u8, timestamp: u64, owner: address)
+  // Signature: submit_analysis(public input_hash: field, public ai_output_hash: field, public ai_score: u8, public timestamp: u64, owner: address)
+  // Note: 'owner' is private parameter - handled by wallet, not passed in inputs
   const inputs = [
-    `${inputHashField}field`,    // input_hash: field
-    `${aiHashField}field`,       // ai_output_hash: field
-    `${riskScore}u8`,            // ai_score: u8
-    `${timestamp}u64`,           // timestamp: u64
-    publicKey,                    // owner: address
+    `${inputHashField}field`,    // public input_hash: field
+    `${aiHashField}field`,       // public ai_output_hash: field
+    `${riskScore}u8`,            // public ai_score: u8
+    `${timestamp}u64`,           // public timestamp: u64
+    // owner: address is private - wallet handles this automatically
   ];
 
   console.log('📦 Final inputs:', inputs);
 
   try {
+    // Create transaction - wallet handles fee records internally
+    // IMPORTANT: 7th param is feePrivate (boolean), NOT fee record - passing an object caused "unknown error"
     const tx = Transaction.createTransaction(
       publicKey,                          // payer / caller
       WalletAdapterNetwork.TestnetBeta,   // network
@@ -135,17 +163,23 @@ export async function submitToAleo({
       'submit_analysis',                  // transition/function name
       inputs,                             // array of string inputs
       DEFAULT_FEE_MICRO_CREDITS,          // fee in microcredits
-      feeRecord                           // fee record (if available)
+      true                                // feePrivate: use private fee (wallet selects fee record)
     );
 
     console.log('✅ Transaction object created');
-    console.log('   Using fee record:', feeRecord ? 'Yes' : 'No (wallet will handle)');
+    console.log('   Network:', WalletAdapterNetwork.TestnetBeta);
+    console.log('   Program:', 'veilnet_ai.aleo');
+    console.log('   Function:', 'submit_analysis');
+    console.log('   Inputs:', inputs);
+    console.log('   Fee (microcredits):', DEFAULT_FEE_MICRO_CREDITS);
+    console.log('   Payer address:', publicKey);
 
-    const transactionId = await requestTransaction(tx);
+    console.log('🚀 Calling requestExecution (program transition)...');
+    const transactionId = await execute(tx);
 
     console.log('✅ Transaction broadcasted successfully!');
     console.log('   Transaction ID:', transactionId);
-    console.log('   View on explorer: https://explorer.aleo.org/transaction/' + transactionId);
+    console.log('   View on explorer: https://testnet.explorer.provable.com/transaction/' + transactionId);
     
     return transactionId;
   } catch (error: any) {
@@ -153,8 +187,34 @@ export async function submitToAleo({
     console.error('   Error details:', {
       message: error.message,
       code: error.code,
-      name: error.name
+      name: error.name,
+      stack: error.stack?.substring(0, 500)
     });
+    
+    // Log the transaction details that failed
+    console.error('   Failed transaction details:', {
+      program: 'veilnet_ai.aleo',
+      function: 'submit_analysis',
+      inputs: inputs,
+      fee: DEFAULT_FEE_MICRO_CREDITS,
+      payer: publicKey,
+      network: WalletAdapterNetwork.TestnetBeta
+    });
+    
+    // Provide more specific error handling
+    if (error.message?.toLowerCase().includes('insufficient')) {
+      throw new Error('Insufficient testnet credits. Please visit https://faucet.aleo.org/ to get more credits and wait 2-3 minutes.');
+    }
+    if (error.message?.toLowerCase().includes('rejected')) {
+      throw new Error('Transaction was rejected in your wallet. Please approve the transaction to continue.');
+    }
+    if (error.message?.toLowerCase().includes('network')) {
+      throw new Error('Network error. Please ensure your wallet is connected to Testnet Beta.');
+    }
+    if (error.message?.toLowerCase().includes('unknown error')) {
+      throw new Error('Transaction failed. This might be due to: 1) Insufficient credits, 2) Wrong network (ensure Testnet Beta), 3) Program not found, or 4) Invalid parameters. Please check your wallet and try again.');
+    }
+    
     throw error;
   }
 }

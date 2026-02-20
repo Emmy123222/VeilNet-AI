@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// This will call the real Aleo program on testnet
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { documentHash, riskScore, timestamp, walletAddress } = body
+    const { documentHash, riskScore, timestamp, walletAddress, requestTransaction, publicKey } = body
 
-    if (!documentHash || riskScore === undefined || !timestamp) {
+    if (!documentHash || riskScore === undefined || !timestamp || !walletAddress) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
@@ -21,42 +20,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Replace with real Aleo SDK call
-    // For now, this is a placeholder that will be replaced with:
-    // 1. Initialize Aleo SDK
-    // 2. Call document_verifier.aleo program
-    // 3. Submit transaction to testnet
-    // 4. Wait for confirmation
-    // 5. Return real transaction ID
+    // This endpoint should be called from the frontend with wallet context
+    // The actual blockchain submission happens in the frontend using the wallet adapter
+    // This endpoint validates the data and returns success
     
-    // Example of what the real implementation will look like:
-    /*
-    const { Account, ProgramManager } = require('@aleohq/sdk');
-    
-    const programManager = new ProgramManager();
-    const transaction = await programManager.execute(
-      'document_verifier.aleo',
-      'verify_document',
-      [documentHash, riskScore, timestamp],
-      { fee: 1000000 }
-    );
-    
-    const transactionId = transaction.id;
-    const status = await transaction.wait();
-    */
+    console.log('📤 Preparing blockchain submission:', {
+      documentHash,
+      riskScore,
+      timestamp,
+      walletAddress,
+      network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnetbeta',
+      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai.aleo'
+    })
 
-    // TEMPORARY: Return structure that matches what real Aleo will return
-    // This MUST be replaced with actual Aleo SDK calls before Wave 2 submission
+    // Validate the document hash format
+    if (!documentHash.match(/^0x[a-fA-F0-9]{64}$/)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid document hash format' },
+        { status: 400 }
+      )
+    }
+
+    // Return success - the actual blockchain call happens in the frontend
     return NextResponse.json({
-      success: false,
-      error: 'Aleo SDK integration pending - program deployed but SDK connection not yet implemented',
-      note: 'This endpoint needs real Aleo SDK integration before Wave 2 submission'
-    }, { status: 501 })
+      success: true,
+      message: 'Data validated. Ready for blockchain submission.',
+      network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnetbeta',
+      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai.aleo',
+      explorerBase: 'https://testnet.explorer.provable.com'
+    })
 
   } catch (error) {
-    console.error('Error submitting to Aleo:', error)
+    console.error('Error preparing Aleo submission:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to submit to Aleo blockchain' },
+      { success: false, error: 'Failed to prepare blockchain submission' },
       { status: 500 }
     )
   }

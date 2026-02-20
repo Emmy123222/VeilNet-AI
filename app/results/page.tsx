@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -38,52 +39,46 @@ export default function ResultsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null)
+  const [results, setResults] = useState<AnalysisResult[]>([])
+  const [loading, setLoading] = useState(false)
 
-  // Mock data - in real app this would come from API/blockchain
-  const mockResults: AnalysisResult[] = [
-    {
-      id: '1',
-      type: 'Document Risk Assessment',
-      fileName: 'contract_agreement.pdf',
-      summary: 'Contract analysis reveals moderate risk level with standard terms.',
-      score: 85,
-      proofHash: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890',
-      timestamp: '2025-01-30T10:30:00Z',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      type: 'Deepfake Detection',
-      fileName: 'profile_image.jpg',
-      summary: 'Image authenticity verified with high confidence.',
-      score: 92,
-      proofHash: '0x9876543210fedcba0987654321fedcba0987654321fedcba0987654321fedcba',
-      timestamp: '2025-01-30T09:15:00Z',
-      status: 'completed'
-    },
-    {
-      id: '3',
-      type: 'Resume Analysis',
-      fileName: 'candidate_resume.pdf',
-      summary: 'Strong technical background with relevant experience.',
-      score: 78,
-      proofHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-      timestamp: '2025-01-29T16:45:00Z',
-      status: 'completed'
-    },
-    {
-      id: '4',
-      type: 'Medical Summary',
-      fileName: 'lab_results.pdf',
-      summary: 'Routine examination with normal findings across parameters.',
-      score: 95,
-      proofHash: '0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456',
-      timestamp: '2025-01-29T14:20:00Z',
-      status: 'completed'
+  // Fetch real results from API when wallet is connected
+  const fetchResults = async () => {
+    if (!connected || !publicKey) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/proofs/history?wallet=${publicKey}`)
+      const data = await response.json()
+      
+      if (data.success && data.proofs) {
+        // Transform proof data to match AnalysisResult interface
+        const transformedResults: AnalysisResult[] = data.proofs.map((proof: any) => ({
+          id: proof.id.toString(),
+          type: proof.documentType || 'Document Analysis',
+          fileName: proof.fileName || 'Unknown File',
+          summary: proof.summary || 'Analysis completed successfully',
+          score: proof.riskScore || 0,
+          proofHash: proof.proofHash,
+          timestamp: proof.timestamp,
+          status: proof.status === 'confirmed' ? 'completed' : proof.status
+        }))
+        setResults(transformedResults)
+      }
+    } catch (error) {
+      console.error('Failed to fetch results:', error)
+      setResults([])
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
-  const filteredResults = mockResults.filter(result => {
+  // Fetch results when component mounts and wallet is connected
+  React.useEffect(() => {
+    fetchResults()
+  }, [connected, publicKey])
+
+  const filteredResults = results.filter(result => {
     const matchesSearch = result.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          result.type.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesFilter = filterType === 'all' || result.type.toLowerCase().includes(filterType.toLowerCase())
@@ -119,11 +114,18 @@ export default function ResultsPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-12 w-12 mx-auto mb-4 object-contain" />
-            <CardTitle>Connect Your Wallet</CardTitle>
+            <CardTitle>Wallet Required</CardTitle>
             <CardDescription>
-              You need to connect your Aleo wallet to view your analysis results.
+              Please return to the home page to connect your Aleo wallet first, then come back to view your results.
             </CardDescription>
           </CardHeader>
+          <CardContent className="text-center">
+            <Link href="/">
+              <Button className="bg-primary hover:bg-primary/90">
+                Go to Home Page
+              </Button>
+            </Link>
+          </CardContent>
           <CardContent className="space-y-4 text-center">
             <WalletMultiButton />
             <Button variant="outline" onClick={() => router.push('/')} className="w-full">
@@ -178,7 +180,7 @@ export default function ResultsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Analyses</p>
-                    <p className="text-2xl font-bold">{mockResults.length}</p>
+                    <p className="text-2xl font-bold">{results.length}</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-primary" />
                 </div>
@@ -191,7 +193,10 @@ export default function ResultsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Score</p>
                     <p className="text-2xl font-bold">
-                      {Math.round(mockResults.reduce((acc, r) => acc + r.score, 0) / mockResults.length)}
+                      {results.length > 0 
+                        ? Math.round(results.reduce((acc, r) => acc + r.score, 0) / results.length)
+                        : 0
+                      }
                     </p>
                   </div>
                   <Shield className="h-8 w-8 text-green-500" />
@@ -204,7 +209,14 @@ export default function ResultsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">This Month</p>
-                    <p className="text-2xl font-bold">{mockResults.length}</p>
+                    <p className="text-2xl font-bold">
+                      {results.filter(r => {
+                        const resultDate = new Date(r.timestamp)
+                        const now = new Date()
+                        return resultDate.getMonth() === now.getMonth() && 
+                               resultDate.getFullYear() === now.getFullYear()
+                      }).length}
+                    </p>
                   </div>
                   <Calendar className="h-8 w-8 text-blue-500" />
                 </div>
@@ -216,7 +228,7 @@ export default function ResultsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Proofs Generated</p>
-                    <p className="text-2xl font-bold">{mockResults.length}</p>
+                    <p className="text-2xl font-bold">{results.length}</p>
                   </div>
                   <Eye className="h-8 w-8 text-purple-500" />
                 </div>
@@ -260,7 +272,14 @@ export default function ResultsPage() {
 
           {/* Results List */}
           <div className="space-y-4">
-            {filteredResults.length === 0 ? (
+            {loading ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading your analysis results...</p>
+                </CardContent>
+              </Card>
+            ) : filteredResults.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

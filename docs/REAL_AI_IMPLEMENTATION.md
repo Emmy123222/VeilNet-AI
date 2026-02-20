@@ -7,14 +7,14 @@ All mock data has been **completely removed** and replaced with real AI implemen
 ## What Was Changed
 
 ### 1. Real AI Service (`lib/ai-service.ts`)
-- ✅ Uses OpenAI GPT-4o-mini API
+- ✅ Uses the Groq API with the Llama-3.3-70b-versatile model for high-speed inference.
 - ✅ Real document analysis with dynamic summaries
 - ✅ Real risk scoring (0-100)
 - ✅ Real insights generation
 - ✅ Support for multiple analysis types
 
 ### 2. Real Document Analysis API (`app/api/analyze/route.ts`)
-- ✅ Calls OpenAI API for real analysis
+- ✅ Calls the Groq API for real analysis.
 - ✅ Generates SHA-256 hash of document
 - ✅ Returns dynamic AI-generated results
 - ✅ No hardcoded responses
@@ -47,7 +47,7 @@ Frontend (React)
     ↓
 Backend API (Next.js)
     ↓
-OpenAI GPT-4o-mini API ← REAL AI HERE
+Groq API (Llama 3.3) ← REAL AI HERE
     ↓
 AI Analysis Result (Dynamic)
     ↓
@@ -82,7 +82,7 @@ Display Result + Transaction Hash
 
 ### Environment Variables
 ```env
-OPENAI_API_KEY=sk-your-openai-api-key-here
+GROQ_API_KEY=gsk_your-groq-api-key-here
 ```
 
 ### Get OpenAI API Key

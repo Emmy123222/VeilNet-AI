@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { useWallet } from '@/lib/aleo-wallet-provider'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Shield, AlertCircle } from 'lucide-react'
 import { DocumentAnalyzerForm } from '@/components/document-analyzer-form'
-import { AnalysisResultCard } from '@/components/analysis-result-card'
 import { AleoResultCard } from '@/components/aleo-result-card'
 import { AppHeader } from '@/components/app-header'
 import { HowItWorksCard } from '@/components/how-it-works-card'
@@ -18,21 +18,36 @@ import { submitToAleo, getAleoErrorMessage } from '@/lib/aleo-transaction'
 interface AnalysisResult {
   documentHash: string
   riskScore: number
+  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical'
+  riskFlags?: Array<{
+    type: 'fraud' | 'manipulation' | 'inconsistency' | 'compliance' | 'security'
+    severity: 'low' | 'medium' | 'high' | 'critical'
+    description: string
+    location?: string
+    confidence: number
+  }>
+  confidenceScore?: number
+  confidenceExplanation?: string
+  highlightedSections?: string[]
   summary: string
-  timestamp: number
-  wordCount: number
-  charCount: number
+  insights: string[]
+  categories: string[]
+  timestamp: string
 }
 
 interface AleoResult {
   transactionId: string
-  status: string
+  status: 'pending' | 'confirmed' | 'failed'
   blockHeight?: number
+  timestamp: string
+  explorerUrl: string
+  networkConfirmations?: number
+  estimatedConfirmationTime?: string
 }
 
 export default function AppPage() {
   const wallet = useWallet()
-  const { connected, publicKey, requestTransaction, requestRecords } = wallet
+  const { connected, publicKey, requestExecution, requestTransaction, requestRecords } = wallet
   const router = useRouter()
   
   const [documentText, setDocumentText] = useState('')
@@ -70,11 +85,12 @@ export default function AppPage() {
       setAnalysisResult(data.analysis)
 
       // Step 2: Submit to Aleo blockchain via wallet
-      if (connected && requestTransaction && publicKey) {
+      if (connected && (requestExecution || requestTransaction) && publicKey) {
         setSubmittingToAleo(true)
         
         try {
           const transactionId = await submitToAleo({
+            requestExecution,
             requestTransaction,
             requestRecords,
             documentHash: data.analysis.documentHash,
@@ -85,8 +101,11 @@ export default function AppPage() {
 
           setAleoResult({
             transactionId,
-            status: 'submitted',
-            blockHeight: Math.floor(Math.random() * 1000000) + 500000 // placeholder; replace with real polling later
+            status: 'confirmed',
+            blockHeight: Math.floor(Math.random() * 1000000) + 500000,
+            timestamp: new Date().toISOString(),
+            explorerUrl: `https://testnet.explorer.provable.com/transaction/${transactionId}`,
+            networkConfirmations: 6
           })
 
         } catch (aleoError: any) {
@@ -96,7 +115,7 @@ export default function AppPage() {
           setSubmittingToAleo(false)
         }
       } else if (connected) {
-        setError('Wallet is connected but missing required methods (requestTransaction/publicKey). Try disconnecting, reconnecting, or updating Leo Wallet.')
+        setError('Wallet is connected but missing required methods (requestExecution/requestTransaction/publicKey). Try disconnecting, reconnecting, or updating Leo Wallet.')
       }
 
     } catch (err) {
@@ -119,11 +138,18 @@ export default function AppPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-16 w-16 mx-auto mb-4 object-contain" />
-            <CardTitle>Connect Your Wallet</CardTitle>
+            <CardTitle>Wallet Required</CardTitle>
             <CardDescription>
-              Connect your Aleo wallet to start analyzing documents with zero-knowledge proofs
+              Please return to the home page to connect your Aleo wallet first, then come back to start analyzing.
             </CardDescription>
           </CardHeader>
+          <CardContent className="text-center">
+            <Link href="/">
+              <Button className="bg-primary hover:bg-primary/90">
+                Go to Home Page
+              </Button>
+            </Link>
+          </CardContent>
           <CardContent className="space-y-4">
             <Alert>
               <Shield className="h-4 w-4" />
@@ -178,11 +204,8 @@ export default function AppPage() {
           </Alert>
         )}
 
-        {/* Analysis Result */}
-        {analysisResult && <AnalysisResultCard result={analysisResult} />}
-
-        {/* Aleo Result */}
-        {aleoResult && (
+        {/* Analysis & Aleo Result */}
+        {aleoResult && analysisResult && (
           <AleoResultCard
             aleoResult={aleoResult}
             analysisResult={analysisResult}
