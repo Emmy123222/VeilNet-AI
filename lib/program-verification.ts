@@ -2,7 +2,7 @@
  * Utility to verify if the Aleo program is deployed and accessible
  */
 
-export async function verifyProgramDeployment(programId: string = 'veilnet_ai.aleo'): Promise<{
+export async function verifyProgramDeployment(programId: string = 'veilnet_ai_v3.aleo'): Promise<{
   isDeployed: boolean;
   error?: string;
   explorerUrl?: string;
@@ -53,12 +53,14 @@ export function getWalletTroubleshootingInfo(error: any): {
   if (errorMessage.includes('insufficient') || errorMessage.includes('credits')) {
     return {
       title: 'Insufficient Credits',
-      message: 'Your wallet does not have enough testnet credits for this transaction.',
+      message: 'Your wallet may have credits but they might not be in the correct format for transactions.',
       suggestions: [
-        'Visit https://faucet.aleo.org/ to get free testnet credits',
-        'Wait 2-3 minutes after requesting credits',
-        'Ensure you\'re requesting credits for the correct address',
-        'Try requesting credits multiple times if needed'
+        'Visit https://faucet.aleo.org/ to get fresh testnet credits',
+        'Wait 2-3 minutes after requesting credits for them to be processed',
+        'Request credits multiple times (sometimes needed for proper format)',
+        'Ensure you\'re requesting credits for your current wallet address',
+        'Try refreshing your wallet or reconnecting it',
+        'Some wallets show credits but they may be in private records - the faucet provides public credits'
       ]
     };
   }

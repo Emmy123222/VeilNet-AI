@@ -1,56 +1,61 @@
-program veilnet_ai.aleo;
+program veilnet_ai_v3.aleo;
 
-record AnalysisProof:
-    owner as address.private;
-    input_hash as field.private;
-    ai_output_hash as field.private;
-    ai_score as u8.private;
-    timestamp as u64.private;
-    proof_id as field.private;
-
-mapping verified_proofs:
+mapping proof_registry:
     key as field.public;
     value as boolean.public;
 
-mapping initialized:
+mapping verification_stats:
     key as u8.public;
-    value as boolean.public;
-
-function initialize:
-    async initialize into r0;
-    output r0 as veilnet_ai.aleo/initialize.future;
-
-finalize initialize:
-    set true into initialized[0u8];
+    value as u64.public;
 
 function submit_analysis:
     input r0 as field.public;
     input r1 as field.public;
     input r2 as u8.public;
     input r3 as u64.public;
-    input r4 as address.private;
+    input r4 as address.public;
     lte r2 100u8 into r5;
     assert.eq r5 true;
+    assert.neq r0 0field;
+    assert.neq r1 0field;
     hash.bhp256 r0 into r6 as field;
-    cast r4 r0 r1 r2 r3 r6 into r7 as AnalysisProof.record;
-    async submit_analysis r6 into r8;
-    output r7 as AnalysisProof.record;
-    output r8 as veilnet_ai.aleo/submit_analysis.future;
+    cast r2 into r7 as field;
+    cast r3 into r8 as field;
+    async submit_analysis r6 r2 into r9;
+    output r9 as veilnet_ai_v3.aleo/submit_analysis.future;
 
 finalize submit_analysis:
     input r0 as field.public;
-    set true into verified_proofs[r0];
+    input r1 as u8.public;
+    set true into proof_registry[r0];
+    lte r1 25u8 into r2;
+    lte r1 60u8 into r3;
+    lte r1 85u8 into r4;
+    ternary r4 3u8 4u8 into r5;
+    ternary r3 2u8 r5 into r6;
+    ternary r2 1u8 r6 into r7;
+    get.or_use verification_stats[r7] 0u64 into r8;
+    add r8 1u64 into r9;
+    set r9 into verification_stats[r7];
 
-function verify_proof:
-    input r0 as field.public;
-    async verify_proof r0 into r1;
-    output true as boolean.private;
-    output r1 as veilnet_ai.aleo/verify_proof.future;
+function verify_proof_exists:
+    input r0 as field.private;
+    async verify_proof_exists r0 into r1;
+    output r1 as veilnet_ai_v3.aleo/verify_proof_exists.future;
 
-finalize verify_proof:
+finalize verify_proof_exists:
     input r0 as field.public;
-    get.or_use verified_proofs[r0] false into r1;
+    get.or_use proof_registry[r0] false into r1;
     assert.eq r1 true;
+
+function get_verification_stats:
+    input r0 as u8.private;
+    async get_verification_stats r0 into r1;
+    output r1 as veilnet_ai_v3.aleo/get_verification_stats.future;
+
+finalize get_verification_stats:
+    input r0 as u8.public;
+    get.or_use verification_stats[r0] 0u64 into r1;
 
 constructor:
     assert.eq edition 0u16;

@@ -12,11 +12,11 @@ export function LandingFeatures() {
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
               <Lock className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle>1. Upload Encrypted</CardTitle>
+            <CardTitle>1. Client-Side Only</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Your files are encrypted client-side before upload. Raw data never leaves your device unprotected.
+              🔒 Files are analyzed entirely in your browser. No uploads, no servers - TRUE privacy guaranteed.
             </p>
           </CardContent>
         </Card>
@@ -26,11 +26,11 @@ export function LandingFeatures() {
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
               <Brain className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle>2. AI Processing</CardTitle>
+            <CardTitle>2. Local Analysis</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              AI models process encrypted data and generate insights without accessing raw content.
+              🧠 Risk assessment performed locally using cryptographic hashing and content patterns.
             </p>
           </CardContent>
         </Card>
@@ -40,11 +40,11 @@ export function LandingFeatures() {
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
-            <CardTitle>3. Verified Results</CardTitle>
+            <CardTitle>3. Private Proofs</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Results are cryptographically verified on Aleo blockchain with zero-knowledge proofs.
+              ✅ Only cryptographic hashes submitted to private blockchain records - no sensitive data exposed.
             </p>
           </CardContent>
         </Card>
@@ -54,11 +54,11 @@ export function LandingFeatures() {
         <Card>
           <CardHeader>
             <Shield className="h-8 w-8 text-primary mb-2" />
-            <CardTitle>Zero-Knowledge Privacy</CardTitle>
+            <CardTitle>TRUE Privacy</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Prove analysis results without revealing underlying data using Aleo's ZK technology.
+              Files never leave your browser. All sensitive data stored in private blockchain records.
             </p>
           </CardContent>
         </Card>
@@ -66,11 +66,11 @@ export function LandingFeatures() {
         <Card>
           <CardHeader>
             <Eye className="h-8 w-8 text-primary mb-2" />
-            <CardTitle>Selective Disclosure</CardTitle>
+            <CardTitle>Cryptographic Proofs</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Share specific insights with third parties while keeping raw data private.
+              Verify analysis authenticity using only cryptographic hashes - no data exposure.
             </p>
           </CardContent>
         </Card>
@@ -78,11 +78,11 @@ export function LandingFeatures() {
         <Card>
           <CardHeader>
             <Zap className="h-8 w-8 text-primary mb-2" />
-            <CardTitle>Fast & Efficient</CardTitle>
+            <CardTitle>Real Verification</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Optimized AI inference with minimal latency and maximum privacy guarantees.
+              Multi-layer on-chain validation with timestamp, hash, and risk score verification.
             </p>
           </CardContent>
         </Card>

@@ -16,9 +16,10 @@ export async function checkWalletBalance(
   requestRecords?: (program: string) => Promise<any[]>
 ): Promise<WalletBalance> {
   if (!requestRecords) {
+    // Return neutral state instead of "no credits"
     return {
-      totalCredits: 0,
-      availableCredits: 0,
+      totalCredits: -1, // -1 indicates unknown
+      availableCredits: -1,
       hasRecords: false,
       recordCount: 0
     }
@@ -28,9 +29,10 @@ export async function checkWalletBalance(
     const records = await requestRecords('credits.aleo')
     
     if (!records || records.length === 0) {
+      // Return neutral state - user might have public balance
       return {
-        totalCredits: 0,
-        availableCredits: 0,
+        totalCredits: -1, // -1 indicates unknown (not necessarily 0)
+        availableCredits: -1,
         hasRecords: false,
         recordCount: 0
       }
@@ -58,9 +60,10 @@ export async function checkWalletBalance(
     }
   } catch (error) {
     console.error('Failed to check wallet balance:', error)
+    // Return neutral state on error
     return {
-      totalCredits: 0,
-      availableCredits: 0,
+      totalCredits: -1, // -1 indicates unknown
+      availableCredits: -1,
       hasRecords: false,
       recordCount: 0
     }

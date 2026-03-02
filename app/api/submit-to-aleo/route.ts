@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       timestamp,
       walletAddress,
       network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnetbeta',
-      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai.aleo'
+      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai_v3.aleo'
     })
 
     // Validate the document hash format
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Data validated. Ready for blockchain submission.',
       network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnetbeta',
-      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai.aleo',
+      program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'veilnet_ai_v3.aleo',
       explorerBase: 'https://testnet.explorer.provable.com'
     })
 

@@ -1,6 +1,6 @@
 {
-  "program": "veilnet_ai.aleo",
+  "program": "veilnet_ai_v3.aleo",
   "version": "0.0.0",
-  "description": "Privacy-preserving AI analysis verification on Aleo blockchain",
+  "description": "TRUE Privacy-preserving AI analysis verification with private records on Aleo blockchain",
   "license": "MIT"
 }

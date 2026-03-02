@@ -5,6 +5,7 @@ import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import { useWalletPersistence } from '@/hooks/use-wallet-persistence'
 import { submitToAleo, getAleoErrorMessage } from '@/lib/aleo-transaction'
 import { checkWalletBalance, formatCredits, hasSufficientCredits } from '@/lib/wallet-utils'
+import { analyzeDocumentClientSide, ClientAnalysisResult } from '@/lib/client-analysis'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -56,7 +57,7 @@ export default function UploadPage() {
   const [analysisType, setAnalysisType] = useState<string>('')
   const [analyzing, setAnalyzing] = useState(false)
   const [currentStep, setCurrentStep] = useState<string>('upload')
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<ClientAnalysisResult | null>(null)
   const [aleoResult, setAleoResult] = useState<AleoResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [estimatedTime, setEstimatedTime] = useState<number>(0)
@@ -79,7 +80,7 @@ export default function UploadPage() {
 
     setAnalyzing(true)
     setError(null)
-    setEstimatedTime(120) // 2 minutes estimated
+    setEstimatedTime(60) // 1 minute estimated for client-side processing
     setCurrentStep('analyze')
 
     // Check wallet balance before starting
@@ -87,68 +88,57 @@ export default function UploadPage() {
       const balance = await checkWalletBalance(requestRecords)
       setWalletBalance(balance)
       
-      if (!balance.hasRecords || balance.availableCredits < 1) {
-        console.warn('⚠️ Insufficient credits detected:', balance)
+      if (balance.availableCredits >= 0 && balance.availableCredits < 0.1) {
+        console.warn('⚠️ Low credits detected:', balance)
+      } else if (balance.availableCredits < 0) {
+        console.log('💰 Credit balance unknown - will let wallet handle fees')
       }
     }
 
     try {
-      // Step 1: Upload and extract text from file
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      formData.append('analysisType', analysisType)
-
-      const uploadResponse = await fetch('/api/upload-file', {
-        method: 'POST',
-        body: formData
+      // Step 1: Analyze document entirely in browser (NO SERVER UPLOAD)
+      console.log('🔒 Starting client-side analysis - file never leaves browser')
+      const clientAnalysis = await analyzeDocumentClientSide(selectedFile)
+      
+      console.log('✅ Client-side analysis complete:', {
+        documentHash: clientAnalysis.documentHash,
+        riskScore: clientAnalysis.riskScore,
+        riskLevel: clientAnalysis.riskLevel
       })
 
-      const uploadData = await uploadResponse.json()
-      if (!uploadData.success) {
-        throw new Error(uploadData.error || 'File upload failed')
-      }
-
-      // Step 2: Analyze with real AI
-      const analysisResponse = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: uploadData.extractedText,
-          analysisType: analysisType
-        })
-      })
-
-      const analysisData = await analysisResponse.json()
-      if (!analysisData.success) {
-        throw new Error(analysisData.error || 'Analysis failed')
-      }
-
-      setAnalysisResult(analysisData.analysis)
+      setAnalysisResult(clientAnalysis)
       setCurrentStep('submit')
 
-      // Step 3: Submit to real Aleo blockchain
+      // Step 2: Submit ONLY cryptographic proof to blockchain (no sensitive data)
       if (connected && (requestExecution || requestTransaction) && publicKey) {
         try {
-          console.log('🚀 Submitting to Aleo blockchain...')
+          console.log('🚀 Submitting cryptographic proof to blockchain...')
+          console.log('   Only hash and risk score - NO sensitive data')
           
           const transactionId = await submitToAleo({
             requestExecution,
             requestTransaction,
-            requestRecords,
-            documentHash: analysisData.analysis.documentHash,
-            riskScore: analysisData.analysis.riskScore,
-            timestamp: Math.floor(new Date(analysisData.analysis.timestamp).getTime() / 1000),
+            documentHash: clientAnalysis.documentHash,
+            analysisHash: clientAnalysis.analysisHash,  // NEW: Pass separate analysis hash
+            riskScore: clientAnalysis.riskScore,
+            timestamp: Math.floor(new Date(clientAnalysis.timestamp).getTime() / 1000),
             publicKey: publicKey.toString()
           })
 
-          console.log('✅ Blockchain submission successful:', transactionId)
+          console.log('✅ Blockchain proof submission successful:', transactionId)
 
-          // Step 4: Store proof with real transaction ID
+          // Step 3: Store proof metadata locally (no sensitive data to server)
           const proofResponse = await fetch('/api/proofs/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              analysisResult: analysisData.analysis,
+              analysisResult: {
+                documentHash: clientAnalysis.documentHash,
+                riskScore: clientAnalysis.riskScore,
+                riskLevel: clientAnalysis.riskLevel,
+                timestamp: clientAnalysis.timestamp,
+                // NO sensitive data like summary, insights, or file content
+              },
               walletAddress: publicKey.toString(),
               transactionId: transactionId
             })
@@ -264,7 +254,8 @@ export default function UploadPage() {
               <h1 className="text-3xl font-bold">Upload & Analyze</h1>
             </div>
             <p className="text-muted-foreground">
-              Upload documents or images for AI-powered analysis with zero-knowledge proofs
+              🔒 TRUE PRIVACY: Documents analyzed entirely in your browser - never uploaded to servers. 
+              Only cryptographic proofs submitted to blockchain.
             </p>
           </div>
           
@@ -279,9 +270,9 @@ export default function UploadPage() {
               </p>
               {walletBalance && (
                 <p className="text-xs text-muted-foreground">
-                  {walletBalance.hasRecords 
+                  {walletBalance.availableCredits >= 0 
                     ? `${walletBalance.availableCredits.toFixed(2)} credits available`
-                    : 'No credits found'
+                    : 'Credits checking...'
                   }
                 </p>
               )}

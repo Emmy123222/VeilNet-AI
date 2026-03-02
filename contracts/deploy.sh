@@ -15,27 +15,44 @@ if ! command -v leo &> /dev/null; then
     exit 1
 fi
 
+# Load environment variables from .env.local if it exists
+if [ -f "../.env.local" ]; then
+    echo "📄 Loading environment variables from .env.local..."
+    # Export each variable properly
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        if [[ ! $key =~ ^#.* ]] && [[ -n $key ]]; then
+            # Remove quotes if present
+            value=$(echo "$value" | sed 's/^"//;s/"$//')
+            export "$key"="$value"
+        fi
+    done < "../.env.local"
+fi
+
 # Check if private key is set
-if [ -z "$PRIVATE_KEY" ]; then
-    echo "⚠️  PRIVATE_KEY environment variable not set"
+if [ -z "$ALEO_PRIVATE_KEY" ]; then
+    echo "⚠️  ALEO_PRIVATE_KEY not found in .env.local"
     echo ""
-    echo "Options:"
-    echo "  1. Set it: export PRIVATE_KEY='APrivateKey1...'"
-    echo "  2. Or run: leo deploy --network testnet3 (will prompt)"
+    echo "Please add your private key to .env.local:"
+    echo "  ALEO_PRIVATE_KEY=APrivateKey1..."
     echo ""
-    read -p "Do you want to deploy interactively? (y/n) " -n 1 -r
+    echo "⚠️  SECURITY WARNING: Never commit .env.local to git!"
+    echo ""
+    read -p "Do you want to deploy interactively instead? (y/n) " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        leo deploy --network testnet3
+        leo deploy --network testnet --endpoint https://api.explorer.provable.com/v1 --broadcast
     else
         echo "Deployment cancelled"
         exit 1
     fi
 else
-    echo "✅ Private key found"
+    echo "✅ Private key found in .env.local"
     echo ""
-    echo "📤 Deploying to testnet3..."
-    leo deploy --network testnet3 --private-key $PRIVATE_KEY
+    echo "📤 Deploying to testnet with broadcast..."
+    # Set PRIVATE_KEY for Leo CLI
+    export PRIVATE_KEY="$ALEO_PRIVATE_KEY"
+    leo deploy --network testnet --endpoint https://api.explorer.provable.com/v1 --broadcast
 fi
 
 if [ $? -eq 0 ]; then
@@ -43,11 +60,11 @@ if [ $? -eq 0 ]; then
     echo "✅ Deployment successful!"
     echo ""
     echo "🔍 Verify on Aleo Explorer:"
-    echo "   https://explorer.aleo.org/program/veilnet_ai.aleo"
+    echo "   https://testnet.explorer.provable.com/program/veilnet_ai_v3.aleo"
     echo ""
     echo "📝 Next steps:"
-    echo "   1. Copy the transaction ID"
-    echo "   2. Update .env.local with program ID"
+    echo "   1. Copy the transaction ID from the output above"
+    echo "   2. Update NEXT_PUBLIC_TRANSACTION_ID in .env.local"
     echo "   3. Test the frontend integration"
     echo ""
 else
@@ -56,7 +73,7 @@ else
     echo ""
     echo "Common issues:"
     echo "  - Insufficient balance (get credits from https://faucet.aleo.org/)"
-    echo "  - Invalid private key"
+    echo "  - Invalid private key format"
     echo "  - Network timeout (try again)"
     echo "  - Program already exists (use existing deployment)"
     echo ""

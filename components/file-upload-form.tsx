@@ -15,7 +15,9 @@ import {
   AlertCircle, 
   CheckCircle,
   Hash,
-  HardDrive
+  HardDrive,
+  Shield,
+  Lock
 } from 'lucide-react'
 
 interface FileUploadFormProps {
@@ -164,7 +166,8 @@ export function FileUploadForm({
           Upload & Analyze
         </CardTitle>
         <CardDescription>
-          Upload documents, images, or text files for AI-powered analysis with blockchain verification
+          🔒 TRUE PRIVACY: Files are analyzed entirely in your browser - never uploaded to any server. 
+          Only cryptographic proofs are submitted to the blockchain for verification.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -214,8 +217,8 @@ export function FileUploadForm({
                   )}
                   
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    File Ready
+                    <Lock className="h-3 w-3 mr-1" />
+                    Client-Side Only - Never Uploaded
                   </Badge>
                 </div>
               ) : (
@@ -292,15 +295,24 @@ export function FileUploadForm({
           {analyzing ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Analyzing...
+              Analyzing Locally...
             </>
           ) : (
             <>
-              <HardDrive className="h-4 w-4 mr-2" />
-              Start Analysis & Generate Proof
+              <Shield className="h-4 w-4 mr-2" />
+              Analyze Privately & Generate Proof
             </>
           )}
         </Button>
+
+        {/* Privacy Notice */}
+        <Alert className="border-blue-200 bg-blue-50">
+          <Shield className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-700">
+            <strong>Privacy Guarantee:</strong> Your file is processed entirely in your browser. 
+            No data is sent to our servers. Only cryptographic hashes are submitted to the blockchain for verification.
+          </AlertDescription>
+        </Alert>
 
         {/* Supported File Types */}
         <div className="text-xs text-muted-foreground">
