@@ -19,76 +19,190 @@ import {
 } from 'lucide-react'
 import { useWallet } from '@/lib/aleo-wallet-provider'
 
+const PROGRAM_ID = 'veilnet_ai_v6.aleo'
+const ALEO_API_BASE = 'https://api.provable.com/v2/testnet'
+
 interface ProofVerification {
-  hash: string
-  status: 'verified' | 'invalid' | 'not_found'
-  timestamp: string
-  blockHeight: number
+  status: 'verified' | 'not_found' | 'rejected'
   transactionId: string
-  analysisType: string
-  resultHash: string
-  publicInputs: string[]
+  blockHeight: number
+  timestamp: string
+  functionName: string
+  programId: string
+  inputs: string[]
+  rejectionReason?: string
+}
+
+/**
+ * Looks up a transaction by its Aleo transaction ID (at1...)
+ * and checks if it is an accepted submit_analysis call to our program.
+ */
+async function verifyByTransactionId(txId: string): Promise<ProofVerification> {
+  // Step 1: Find which block contains this transaction
+  const blockHashRes = await fetch(`${ALEO_API_BASE}/find/blockHash/${txId}`, {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!blockHashRes.ok) {
+    return {
+      status: 'not_found',
+      transactionId: txId,
+      blockHeight: 0,
+      timestamp: '',
+      functionName: '',
+      programId: '',
+      inputs: [],
+    }
+  }
+
+  const blockHash: string = await blockHashRes.json()
+
+  // Step 2: Get the block height from the block hash
+  const heightRes = await fetch(`${ALEO_API_BASE}/height/${blockHash}`, {
+    headers: { Accept: 'application/json' },
+  })
+
+  const blockHeight: number = heightRes.ok ? await heightRes.json() : 0
+
+  // Step 3: Get all transactions in that block and find ours
+  const blockTxRes = await fetch(`${ALEO_API_BASE}/block/${blockHeight}/transactions`, {
+    headers: { Accept: 'application/json' },
+  })
+
+  if (!blockTxRes.ok) {
+    return {
+      status: 'not_found',
+      transactionId: txId,
+      blockHeight,
+      timestamp: '',
+      functionName: '',
+      programId: '',
+      inputs: [],
+    }
+  }
+
+  const transactions = await blockTxRes.json()
+  if (!Array.isArray(transactions)) {
+    return {
+      status: 'not_found',
+      transactionId: txId,
+      blockHeight,
+      timestamp: '',
+      functionName: '',
+      programId: '',
+      inputs: [],
+    }
+  }
+
+  // Step 4: Find our specific transaction
+  for (const confirmedTx of transactions) {
+    const tx = confirmedTx?.transaction
+    if (!tx || tx.id !== txId) continue
+
+    // Found the transaction — check if it was accepted
+    if (confirmedTx.status === 'rejected') {
+      return {
+        status: 'rejected',
+        transactionId: txId,
+        blockHeight,
+        timestamp: '',
+        functionName: 'submit_analysis',
+        programId: PROGRAM_ID,
+        inputs: [],
+        rejectionReason: 'Transaction was rejected on-chain. The proof was not recorded.',
+      }
+    }
+
+    // Check it's an execute to our program
+    const transitions = tx?.execution?.transitions
+    if (!Array.isArray(transitions)) continue
+
+    for (const transition of transitions) {
+      if (
+        transition.program === PROGRAM_ID &&
+        transition.function === 'submit_analysis'
+      ) {
+        // Extract public inputs for display
+        const inputs: string[] = []
+        if (Array.isArray(transition.inputs)) {
+          transition.inputs.forEach((inp: any, i: number) => {
+            const labels = ['document_hash', 'analysis_hash', 'risk_score', 'timestamp', 'owner']
+            inputs.push(`${labels[i] || `input_${i}`}: ${inp.value || inp}`)
+          })
+        }
+
+        return {
+          status: 'verified',
+          transactionId: txId,
+          blockHeight,
+          timestamp: new Date().toISOString(),
+          functionName: transition.function,
+          programId: transition.program,
+          inputs,
+        }
+      }
+    }
+
+    // Transaction found but not to our program
+    return {
+      status: 'not_found',
+      transactionId: txId,
+      blockHeight,
+      timestamp: '',
+      functionName: '',
+      programId: '',
+      inputs: [],
+      rejectionReason: `Transaction found but it does not call ${PROGRAM_ID}::submit_analysis.`,
+    }
+  }
+
+  return {
+    status: 'not_found',
+    transactionId: txId,
+    blockHeight,
+    timestamp: '',
+    functionName: '',
+    programId: '',
+    inputs: [],
+  }
 }
 
 function VerifyProofContent() {
   const { connected } = useWallet()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [proofHash, setProofHash] = useState('')
+  const [txInput, setTxInput] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [verification, setVerification] = useState<ProofVerification | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const hashFromUrl = searchParams.get('hash')
-    if (hashFromUrl) {
-      setProofHash(hashFromUrl)
-      handleVerify(hashFromUrl)
+    const txFromUrl = searchParams.get('tx') || searchParams.get('hash')
+    if (txFromUrl) {
+      setTxInput(txFromUrl)
+      handleVerify(txFromUrl)
     }
   }, [searchParams])
 
-  const handleVerify = async (hash?: string) => {
-    const hashToVerify = hash || proofHash
-    if (!hashToVerify.trim()) return
+  const handleVerify = async (input?: string) => {
+    const raw = (input || txInput).trim()
+    if (!raw) return
+
+    // Validate it looks like an Aleo transaction ID
+    if (!raw.startsWith('at1') || raw.length < 60) {
+      setError('Please enter a valid Aleo transaction ID. It should start with "at1" and be at least 60 characters long.')
+      return
+    }
 
     setVerifying(true)
     setError(null)
     setVerification(null)
 
     try {
-      // Call real verification API
-      const response = await fetch('/api/proofs/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proofHash: hashToVerify })
-      })
-
-      const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || 'Verification failed')
-      }
-
-      // Map API response to ProofVerification format
-      const verification: ProofVerification = {
-        hash: data.verification.proofHash,
-        status: data.verification.status,
-        timestamp: data.verification.timestamp,
-        blockHeight: data.verification.blockHeight,
-        transactionId: data.verification.proofHash, // Use proof hash as transaction ID
-        analysisType: 'Document Analysis',
-        resultHash: data.verification.proofHash,
-        publicInputs: [
-          `status: ${data.verification.status}`,
-          `verified_by: ${data.verification.verifiedBy}`,
-          `block_height: ${data.verification.blockHeight}`,
-          `timestamp: ${data.verification.timestamp}`
-        ]
-      }
-
-      setVerification(verification)
+      const result = await verifyByTransactionId(raw)
+      setVerification(result)
     } catch (err: any) {
-      setError(err.message || 'Failed to verify proof. Please check the hash and try again.')
+      setError(err.message || 'Failed to verify. Please check the transaction ID and try again.')
     } finally {
       setVerifying(false)
     }
@@ -99,13 +213,14 @@ function VerifyProofContent() {
   }
 
   const formatDate = (timestamp: string) => {
+    if (!timestamp) return 'N/A'
     return new Date(timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     })
   }
 
@@ -133,7 +248,7 @@ function VerifyProofContent() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Proof Verification</h1>
             <p className="text-muted-foreground">
-              Verify zero-knowledge proofs generated by VeilNet AI analysis on the Aleo blockchain.
+              Verify that your document analysis was recorded on the Aleo blockchain by entering your transaction ID.
             </p>
           </div>
 
@@ -142,25 +257,26 @@ function VerifyProofContent() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Search className="h-5 w-5 mr-2" />
-                Enter Proof Hash
+                Enter Transaction ID
               </CardTitle>
               <CardDescription>
-                Paste the proof hash from your analysis results to verify its authenticity on the blockchain.
+                Paste the <strong>Aleo transaction ID</strong> you received after submitting your analysis. 
+                It starts with <code className="bg-muted px-1 rounded">at1</code> and is shown in your analysis results.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex space-x-2">
                   <Input
-                    placeholder="0x1a2b3c4d5e6f7890abcdef..."
-                    value={proofHash}
-                    onChange={(e) => setProofHash(e.target.value)}
-                    className="font-mono"
+                    placeholder="at1n7lm8tw599dlhkcrc69u6uva2dqfjxsrpgwv2g43axkxh7hrju8srql8gw"
+                    value={txInput}
+                    onChange={(e) => setTxInput(e.target.value)}
+                    className="font-mono text-sm"
                     disabled={verifying}
                   />
-                  <Button 
+                  <Button
                     onClick={() => handleVerify()}
-                    disabled={!proofHash.trim() || verifying}
+                    disabled={!txInput.trim() || verifying}
                   >
                     {verifying ? (
                       <>
@@ -175,9 +291,8 @@ function VerifyProofContent() {
                     )}
                   </Button>
                 </div>
-                
-                <p className="text-sm text-muted-foreground">
-                  Proof hashes are 64-character hexadecimal strings starting with "0x"
+                <p className="text-xs text-muted-foreground">
+                  ℹ️ Your transaction ID is displayed after a successful document analysis submission.
                 </p>
               </div>
             </CardContent>
@@ -194,6 +309,7 @@ function VerifyProofContent() {
           {/* Verification Results */}
           {verification && (
             <div className="space-y-6">
+
               {/* Status Card */}
               <Card>
                 <CardHeader>
@@ -204,9 +320,13 @@ function VerifyProofContent() {
                       ) : (
                         <AlertCircle className="h-6 w-6 mr-2 text-red-500" />
                       )}
-                      Proof {verification.status === 'verified' ? 'Verified' : 'Invalid'}
+                      {verification.status === 'verified'
+                        ? 'Proof Verified ✅'
+                        : verification.status === 'rejected'
+                        ? 'Transaction Rejected ❌'
+                        : 'Proof Not Found'}
                     </CardTitle>
-                    <Badge 
+                    <Badge
                       variant={verification.status === 'verified' ? 'default' : 'destructive'}
                       className="text-xs"
                     >
@@ -214,10 +334,11 @@ function VerifyProofContent() {
                     </Badge>
                   </div>
                   <CardDescription>
-                    {verification.status === 'verified' 
-                      ? 'This proof has been successfully verified on the Aleo blockchain.'
-                      : 'This proof could not be verified or does not exist on the blockchain.'
-                    }
+                    {verification.status === 'verified'
+                      ? 'This analysis was successfully recorded on the Aleo blockchain. The proof is valid and tamper-proof.'
+                      : verification.status === 'rejected'
+                      ? verification.rejectionReason
+                      : 'No proof found for this transaction ID. It may still be processing — wait 1–2 minutes and try again.'}
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -229,82 +350,51 @@ function VerifyProofContent() {
                     <CardHeader>
                       <CardTitle>Proof Details</CardTitle>
                       <CardDescription>
-                        Cryptographic proof information stored on the Aleo blockchain.
+                        On-chain record of your document analysis.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <h4 className="font-medium mb-2">Analysis Type</h4>
-                          <p className="text-muted-foreground">{verification.analysisType}</p>
+                          <h4 className="font-medium mb-2">Program</h4>
+                          <p className="text-muted-foreground font-mono text-sm">{verification.programId}</p>
                         </div>
                         <div>
-                          <h4 className="font-medium mb-2">Verification Time</h4>
-                          <p className="text-muted-foreground">{formatDate(verification.timestamp)}</p>
+                          <h4 className="font-medium mb-2">Function</h4>
+                          <p className="text-muted-foreground font-mono text-sm">{verification.functionName}</p>
                         </div>
-                        <div>
-                          <h4 className="font-medium mb-2">Block Height</h4>
-                          <p className="text-muted-foreground font-mono">{verification.blockHeight.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium mb-2">Transaction ID</h4>
-                          <div className="flex items-center space-x-2">
-                            <p className="text-muted-foreground font-mono text-sm truncate">
-                              {verification.transactionId}
+                        {verification.blockHeight > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-2">Block Height</h4>
+                            <p className="text-muted-foreground font-mono">
+                              {verification.blockHeight.toLocaleString()}
                             </p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => copyToClipboard(verification.transactionId)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
                           </div>
+                        )}
+                        <div>
+                          <h4 className="font-medium mb-2">Network</h4>
+                          <p className="text-muted-foreground">Aleo Testnet Beta</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Proof Hash */}
+                  {/* Transaction ID */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Proof Hash</CardTitle>
+                      <CardTitle>Transaction ID</CardTitle>
                       <CardDescription>
-                        The unique identifier for this zero-knowledge proof.
+                        Your unique on-chain proof identifier.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="bg-muted p-4 rounded-lg">
                         <div className="flex items-center justify-between">
-                          <p className="font-mono text-sm break-all pr-4">{verification.hash}</p>
+                          <p className="font-mono text-sm break-all pr-4">{verification.transactionId}</p>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => copyToClipboard(verification.hash)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Result Hash */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Result Hash</CardTitle>
-                      <CardDescription>
-                        Cryptographic hash of the analysis results without revealing the actual data.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-muted p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <p className="font-mono text-sm break-all pr-4">{verification.resultHash}</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(verification.resultHash)}
+                            onClick={() => copyToClipboard(verification.transactionId)}
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -314,27 +404,37 @@ function VerifyProofContent() {
                   </Card>
 
                   {/* Public Inputs */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Public Inputs</CardTitle>
-                      <CardDescription>
-                        Non-sensitive information that was used to generate this proof.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {verification.publicInputs.map((input, index) => (
-                          <div key={index} className="bg-muted p-3 rounded-lg">
-                            <p className="font-mono text-sm">{input}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {verification.inputs.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Public Inputs</CardTitle>
+                        <CardDescription>
+                          The hashed inputs recorded on-chain. No sensitive data is revealed.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {verification.inputs.map((input, index) => (
+                            <div key={index} className="bg-muted p-3 rounded-lg">
+                              <p className="font-mono text-sm break-all">{input}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Actions */}
                   <div className="flex space-x-4">
-                    <Button variant="outline">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        window.open(
+                          `https://testnet.explorer.provable.com/transaction/${verification.transactionId}`,
+                          '_blank'
+                        )
+                      }
+                    >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       View on Aleo Explorer
                     </Button>
@@ -366,7 +466,6 @@ function VerifyProofContent() {
                     Proves computation was performed correctly without revealing input data.
                   </p>
                 </div>
-                
                 <div className="text-center">
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="h-6 w-6 text-primary" />
@@ -376,7 +475,6 @@ function VerifyProofContent() {
                     Proofs are stored on Aleo blockchain for immutable verification.
                   </p>
                 </div>
-                
                 <div className="text-center">
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <ExternalLink className="h-6 w-6 text-primary" />
@@ -397,14 +495,16 @@ function VerifyProofContent() {
 
 export default function VerifyProofPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading proof verification...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading proof verification...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <VerifyProofContent />
     </Suspense>
   )

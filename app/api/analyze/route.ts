@@ -99,8 +99,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate document hash for integrity verification
-    const documentHash = '0x' + createHash('sha256')
+    // Generate document hash for integrity verification (without 0x prefix for Aleo)
+    const documentHash = createHash('sha256')
       .update(sanitizedText)
       .digest('hex')
 

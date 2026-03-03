@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         networkConfirmations: confirmations,
         explorerUrl: `https://testnet.explorer.provable.com/transaction/${transactionId}`,
         gasUsed: '0.001 credits',
-        programId: 'veilnet_ai_v3.aleo'
+        programId: 'veilnet_ai_v6.aleo'
       }
     })
 

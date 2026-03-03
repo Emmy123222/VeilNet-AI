@@ -39,13 +39,21 @@ export function TestnetCreditsHelp() {
           <div className="flex items-start gap-3">
             <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</div>
             <div>
-              <p className="font-medium text-blue-800">Wait for Credits</p>
-              <p className="text-sm text-blue-700">Credits usually arrive within 2-3 minutes after requesting</p>
+              <p className="font-medium text-blue-800">Wait for Credits & Request Multiple Times</p>
+              <p className="text-sm text-blue-700">Credits usually arrive within 2-3 minutes. If the first request doesn't work, try requesting 2-3 more times with a few minutes between each request.</p>
             </div>
           </div>
 
           <div className="flex items-start gap-3">
             <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">3</div>
+            <div>
+              <p className="font-medium text-blue-800">Check Wallet Network</p>
+              <p className="text-sm text-blue-700">Ensure your Leo Wallet is connected to <strong>Testnet Beta</strong> (not mainnet)</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">4</div>
             <div>
               <p className="font-medium text-blue-800">Refresh & Try Again</p>
               <p className="text-sm text-blue-700">Once credits arrive, refresh the page and try your analysis again</p>

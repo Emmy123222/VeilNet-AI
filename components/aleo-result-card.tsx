@@ -35,6 +35,11 @@ interface AnalysisResult {
   confidenceScore?: number
   confidenceExplanation?: string
   highlightedSections?: string[]
+  // Wave 3: Image analysis fields
+  authenticityScore?: number
+  deepfakeConfidence?: number
+  manipulationIndicators?: string[]
+  technicalFindings?: string[]
 }
 
 interface AleoResultCardProps {
@@ -43,8 +48,19 @@ interface AleoResultCardProps {
   onReset: () => void
 }
 
+/**
+ * Strips 0x prefix from any hash string.
+ * Aleo does not use 0x-prefixed hashes.
+ */
+function stripHexPrefix(hash: string): string {
+  return hash?.replace(/^0x/i, '') ?? ''
+}
+
 export function AleoResultCard({ aleoResult, analysisResult, onReset }: AleoResultCardProps) {
   const [copied, setCopied] = useState<string | null>(null)
+
+  // ✅ Strip 0x prefix from document hash at the component level
+  const cleanDocumentHash = stripHexPrefix(analysisResult?.documentHash ?? '')
 
   const copyToClipboard = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text)
@@ -246,6 +262,46 @@ export function AleoResultCard({ aleoResult, analysisResult, onReset }: AleoResu
                   </div>
                 )}
 
+                {/* Wave 3: Manipulation Indicators (for image analysis) */}
+                {analysisResult.manipulationIndicators && analysisResult.manipulationIndicators.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center">
+                      <AlertTriangle className="h-4 w-4 mr-1 text-orange-600" />
+                      Manipulation Indicators ({analysisResult.manipulationIndicators.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {analysisResult.manipulationIndicators.slice(0, 5).map((indicator, index) => (
+                        <div key={index} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <p className="text-sm text-orange-900">{indicator}</p>
+                        </div>
+                      ))}
+                      {analysisResult.manipulationIndicators.length > 5 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{analysisResult.manipulationIndicators.length - 5} more indicators detected
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Wave 3: Technical Findings (for image analysis) */}
+                {analysisResult.technicalFindings && analysisResult.technicalFindings.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-2 flex items-center">
+                      <Info className="h-4 w-4 mr-1" />
+                      Technical Findings ({analysisResult.technicalFindings.length})
+                    </h4>
+                    <div className="space-y-1">
+                      {analysisResult.technicalFindings.slice(0, 5).map((finding, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <span className="text-primary">•</span>
+                          <span className="text-foreground">{finding}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Highlighted Sections */}
                 {analysisResult.highlightedSections && analysisResult.highlightedSections.length > 0 && (
                   <div>
@@ -274,7 +330,7 @@ export function AleoResultCard({ aleoResult, analysisResult, onReset }: AleoResu
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Program:</span>
-              <code className="font-mono">veilnet_ai_v3.aleo</code>
+              <code className="font-mono">veilnet_ai_v6.aleo</code>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Function:</span>
@@ -288,18 +344,26 @@ export function AleoResultCard({ aleoResult, analysisResult, onReset }: AleoResu
               <span className="text-muted-foreground">Timestamp:</span>
               <span className="font-mono text-xs">{new Date(aleoResult.timestamp).toLocaleString()}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Document Hash:</span>
-              <div className="flex items-center gap-2">
-                <code className="font-mono text-xs">{analysisResult?.documentHash.slice(0, 20)}...</code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(analysisResult?.documentHash || '', 'hash')}
-                  className="h-5 px-1"
+            <div className="flex justify-between items-start">
+              <span className="text-muted-foreground">Transaction ID:</span>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  <code className="font-mono text-xs">{aleoResult.transactionId.slice(0, 20)}...</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(aleoResult.transactionId, 'txid')}
+                    className="h-5 px-1"
+                  >
+                    {copied === 'txid' ? '✓' : <Copy className="h-3 w-3" />}
+                  </Button>
+                </div>
+                <a 
+                  href={`/verify-proof?txid=${aleoResult.transactionId}`}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
                 >
-                  {copied === 'hash' ? '✓' : <Copy className="h-3 w-3" />}
-                </Button>
+                  Verify on blockchain <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             </div>
           </div>

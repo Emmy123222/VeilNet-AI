@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Shield, AlertCircle } from 'lucide-react'
+import { Shield, AlertCircle, CheckCircle } from 'lucide-react'
 import { DocumentAnalyzerForm } from '@/components/document-analyzer-form'
 import { AleoResultCard } from '@/components/aleo-result-card'
 import { AppHeader } from '@/components/app-header'
 import { HowItWorksCard } from '@/components/how-it-works-card'
+import { StreamingAnalysisDisplay } from '@/components/streaming-analysis-display'
 import { submitToAleo, getAleoErrorMessage } from '@/lib/aleo-transaction'
 
 interface AnalysisResult {
@@ -47,7 +48,7 @@ interface AleoResult {
 
 export default function AppPage() {
   const wallet = useWallet()
-  const { connected, publicKey, requestExecution, requestTransaction, requestRecords } = wallet
+  const { connected, publicKey, requestExecution, requestTransaction } = wallet
   const router = useRouter()
   
   const [documentText, setDocumentText] = useState('')
@@ -56,6 +57,11 @@ export default function AppPage() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [aleoResult, setAleoResult] = useState<AleoResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  // Wave 3: Streaming state
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [streamedContent, setStreamedContent] = useState('')
+  const [streamProgress, setStreamProgress] = useState(0)
 
   const handleAnalyze = async () => {
     if (!documentText.trim()) {
@@ -67,8 +73,18 @@ export default function AppPage() {
     setError(null)
     setAnalysisResult(null)
     setAleoResult(null)
+    
+    // Wave 3: Enable streaming
+    setIsStreaming(true)
+    setStreamedContent('')
+    setStreamProgress(0)
 
     try {
+      // Simulate streaming progress
+      const progressInterval = setInterval(() => {
+        setStreamProgress(prev => Math.min(prev + 10, 90))
+      }, 500)
+
       // Step 1: Analyze document locally
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -78,9 +94,22 @@ export default function AppPage() {
 
       const data = await response.json()
 
+      clearInterval(progressInterval)
+      setStreamProgress(100)
+      setIsStreaming(false)
+
       if (!data.success) {
         throw new Error(data.error || 'Analysis failed')
       }
+
+      // Update streamed content with results
+      setStreamedContent(`Analysis Complete!\n\n` +
+        `Document Hash: ${data.analysis.documentHash}\n` +
+        `Risk Score: ${data.analysis.riskScore}/100\n` +
+        `Risk Level: ${data.analysis.riskLevel}\n\n` +
+        `Summary:\n${data.analysis.summary}\n\n` +
+        `Key Insights:\n${data.analysis.insights.map((i: string, idx: number) => `${idx + 1}. ${i}`).join('\n')}`
+      )
 
       setAnalysisResult(data.analysis)
 
@@ -92,8 +121,8 @@ export default function AppPage() {
           const transactionId = await submitToAleo({
             requestExecution,
             requestTransaction,
-            requestRecords,
             documentHash: data.analysis.documentHash,
+            analysisHash: data.analysis.analysisHash,
             riskScore: data.analysis.riskScore,
             timestamp: data.analysis.timestamp,
             publicKey,
@@ -130,6 +159,11 @@ export default function AppPage() {
     setAnalysisResult(null)
     setAleoResult(null)
     setError(null)
+    
+    // Wave 3: Reset streaming state
+    setIsStreaming(false)
+    setStreamedContent('')
+    setStreamProgress(0)
   }
 
   if (!connected) {
@@ -201,6 +235,27 @@ export default function AppPage() {
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Wave 3: Streaming Analysis Display */}
+        {(isStreaming || streamedContent) && (
+          <div className="mb-6">
+            <StreamingAnalysisDisplay
+              isStreaming={isStreaming}
+              streamedContent={streamedContent}
+              progress={streamProgress}
+            />
+          </div>
+        )}
+
+        {/* Success Message after analysis completes */}
+        {!isStreaming && analysisResult && !aleoResult && streamedContent && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700">
+              <strong>✅ Analysis Complete!</strong> Submitting proof to blockchain...
+            </AlertDescription>
           </Alert>
         )}
 

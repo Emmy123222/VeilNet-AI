@@ -3,20 +3,14 @@ import { createHash } from 'crypto'
 
 // File type handlers
 const extractTextFromPDF = async (buffer: ArrayBuffer): Promise<string> => {
-  // In production, use a PDF parsing library like pdf-parse or pdf2pic
-  // For demo purposes, return placeholder text
   return `[PDF Content Extracted]\n\nThis is a placeholder for PDF text extraction. In production, this would use a library like pdf-parse to extract actual text content from the PDF file.\n\nDocument contains ${Math.floor(buffer.byteLength / 1024)}KB of data.`
 }
 
 const extractTextFromDOCX = async (buffer: ArrayBuffer): Promise<string> => {
-  // In production, use a DOCX parsing library like mammoth or docx-parser
-  // For demo purposes, return placeholder text
   return `[DOCX Content Extracted]\n\nThis is a placeholder for DOCX text extraction. In production, this would use a library like mammoth to extract actual text content from the Word document.\n\nDocument contains ${Math.floor(buffer.byteLength / 1024)}KB of data.`
 }
 
 const extractTextFromImage = async (buffer: ArrayBuffer): Promise<string> => {
-  // In production, use OCR library like Tesseract.js or cloud OCR service
-  // For demo purposes, return placeholder text
   return `[Image OCR Analysis]\n\nThis is a placeholder for image text extraction using OCR. In production, this would use Tesseract.js or a cloud OCR service to extract text from images.\n\nImage size: ${Math.floor(buffer.byteLength / 1024)}KB`
 }
 
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
       'application/msword',
       'text/plain',
       'image/jpeg',
-      'image/jpg', 
+      'image/jpg',
       'image/png'
     ]
 
@@ -62,15 +56,15 @@ export async function POST(request: NextRequest) {
 
     // Read file buffer
     const buffer = await file.arrayBuffer()
-    
-    // Generate file hash for integrity verification
+
+    // ✅ FIX: Generate file hash WITHOUT 0x prefix — Aleo does not use 0x
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const fileHash = '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('') // ← 0x removed
 
     // Extract text based on file type
     let extractedText: string
-    
+
     try {
       switch (file.type) {
         case 'application/pdf':
@@ -107,10 +101,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate document hash from extracted content
-    const documentHash = '0x' + createHash('sha256')
+    // ✅ documentHash — clean hex, no 0x prefix, safe for Aleo
+    const documentHash = createHash('sha256')
       .update(extractedText)
-      .digest('hex')
+      .digest('hex') // digest('hex') never adds 0x — already correct
 
     return NextResponse.json({
       success: true,
@@ -118,10 +112,10 @@ export async function POST(request: NextRequest) {
         name: file.name,
         type: file.type,
         size: file.size,
-        hash: fileHash,
-        documentHash
+        hash: fileHash,        // ✅ No 0x — file integrity hash
+        documentHash,          // ✅ No 0x — use this for Aleo submission
       },
-      extractedText: extractedText.substring(0, 5000), // Limit for response size
+      extractedText: extractedText.substring(0, 5000),
       textLength: extractedText.length,
       analysisType: analysisType || 'document-risk'
     })

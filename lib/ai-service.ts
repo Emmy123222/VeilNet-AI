@@ -186,3 +186,131 @@ Provide comprehensive analysis in JSON format:
     confidenceExplanation: analysis.confidenceExplanation || 'Analysis based on document content and patterns'
   }
 }
+
+/**
+ * Vision Analysis Interface for Image/Video Deepfake Detection
+ */
+export interface VisionAnalysis extends DocumentAnalysis {
+  authenticityScore: number // 0-100, higher = more authentic
+  manipulationIndicators: string[]
+  deepfakeConfidence: number // 0-100, confidence that it's a deepfake
+  technicalFindings: string[]
+}
+
+/**
+ * Analyze image for deepfake detection and authenticity
+ * Uses Groq's Llama 3.2 Vision model
+ */
+export async function analyzeImageForDeepfake(imageBase64: string): Promise<VisionAnalysis> {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY not configured')
+  }
+
+  const prompt = `Analyze this image for signs of manipulation, deepfake characteristics, and authenticity.
+
+Look for:
+1. Facial inconsistencies (if person present)
+2. Lighting and shadow anomalies
+3. Edge artifacts and blending issues
+4. Unnatural textures or patterns
+5. Metadata inconsistencies
+6. AI generation artifacts
+7. Photo manipulation signs
+
+Provide detailed analysis in JSON format:
+{
+  "summary": "Brief overview of findings",
+  "authenticityScore": 0-100 (100 = authentic, 0 = fake),
+  "deepfakeConfidence": 0-100 (confidence it's a deepfake),
+  "riskScore": 0-100 (risk of being manipulated),
+  "riskLevel": "Low|Medium|High|Critical",
+  "manipulationIndicators": ["indicator1", "indicator2"],
+  "technicalFindings": ["finding1", "finding2"],
+  "insights": ["insight1", "insight2"],
+  "categories": ["deepfake", "manipulation", etc],
+  "riskFlags": [
+    {
+      "type": "manipulation",
+      "severity": "low|medium|high|critical",
+      "description": "...",
+      "confidence": 0-100
+    }
+  ],
+  "confidenceScore": 0-100,
+  "confidenceExplanation": "..."
+}`
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.2-90b-vision-preview',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' }
+    })
+
+    const result = completion.choices[0]?.message?.content
+    if (!result) {
+      throw new Error('No response from vision AI')
+    }
+
+    const analysis = JSON.parse(result) as VisionAnalysis
+
+    // Validate and normalize
+    const authenticityScore = Math.min(100, Math.max(0, analysis.authenticityScore || 50))
+    const deepfakeConfidence = Math.min(100, Math.max(0, analysis.deepfakeConfidence || 0))
+    const riskScore = Math.min(100, Math.max(0, analysis.riskScore || deepfakeConfidence))
+    const riskLevel = riskScore <= 25 ? 'Low' : riskScore <= 60 ? 'Medium' : riskScore <= 85 ? 'High' : 'Critical'
+
+    return {
+      summary: analysis.summary || 'Image analysis completed',
+      authenticityScore,
+      deepfakeConfidence,
+      manipulationIndicators: Array.isArray(analysis.manipulationIndicators) ? analysis.manipulationIndicators : [],
+      technicalFindings: Array.isArray(analysis.technicalFindings) ? analysis.technicalFindings : [],
+      riskScore,
+      insights: Array.isArray(analysis.insights) ? analysis.insights : [],
+      categories: Array.isArray(analysis.categories) ? analysis.categories : ['image-analysis'],
+      riskLevel,
+      riskFlags: Array.isArray(analysis.riskFlags) ? analysis.riskFlags : [],
+      confidenceScore: Math.min(100, Math.max(0, analysis.confidenceScore || 75)),
+      highlightedSections: [],
+      confidenceExplanation: analysis.confidenceExplanation || 'Analysis based on visual inspection and AI detection'
+    }
+  } catch (error: any) {
+    console.error('Vision analysis error:', error)
+    
+    // Fallback analysis if vision model fails
+    return {
+      summary: 'Image uploaded successfully. Advanced deepfake detection requires vision model access.',
+      authenticityScore: 50,
+      deepfakeConfidence: 0,
+      manipulationIndicators: ['Vision analysis unavailable'],
+      technicalFindings: ['Please ensure Groq API has vision model access'],
+      riskScore: 50,
+      insights: ['Image received and processed', 'Vision analysis requires Llama 3.2 Vision model'],
+      categories: ['image-analysis'],
+      riskLevel: 'Medium',
+      riskFlags: [],
+      confidenceScore: 30,
+      highlightedSections: [],
+      confidenceExplanation: 'Limited analysis without vision model access'
+    }
+  }
+}

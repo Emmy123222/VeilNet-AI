@@ -1,23 +1,107 @@
-// Aleo transaction submission logic for veilnet_ai_v3.aleo::submit_analysis
+// Aleo transaction submission logic for veilnet_ai_v6.aleo::submit_analysis
 
 import {
   Transaction,
   WalletAdapterNetwork,
 } from '@demox-labs/aleo-wallet-adapter-base';
 
-const DEFAULT_FEE_MICRO_CREDITS = 750_000; // 0.75 credits - safe for complex transitions with asserts + BHP256 + mappings
+const DEFAULT_FEE_MICRO_CREDITS = 750_000;
 
-// Aleo field prime (for safe modulo in hash-to-field conversion)
+// Aleo field prime
 const FIELD_PRIME = BigInt('8444461749428370424248824938781546531375899830566350301575494140362904909311');
 
+// ✅ Correct Provable API v2 base
+const ALEO_API_BASE = 'https://api.provable.com/v2/testnet';
+const PROGRAM_ID = 'veilnet_ai_v6.aleo';
+
 /**
- * Converts a 256-bit hex string (e.g. SHA-256 digest) to a decimal string suitable for Aleo field.
- * Modulo FIELD_PRIME to fit field size.
+ * Polls the Provable API v2 to find the real Aleo transaction ID
+ * after Leo Wallet returns a UUID.
+ */
+async function pollForRealTransactionId(
+  _uuid: string,
+  maxAttempts: number = 12,
+  delayMs: number = 5000
+): Promise<string | null> {
+  console.log(`🔍 Polling Provable API v2 for real transaction ID...`);
+  console.log(`   Program: ${PROGRAM_ID}`);
+  console.log(`   Will try ${maxAttempts} times every ${delayMs / 1000}s`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`   Attempt ${attempt}/${maxAttempts}...`);
+
+      // Get latest block height
+      const heightRes = await fetch(`${ALEO_API_BASE}/block/height/latest`, {
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!heightRes.ok) {
+        console.warn(`   Could not fetch latest block height: ${heightRes.status}`);
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+
+      const latestHeight: number = await heightRes.json();
+      console.log(`   Latest block height: ${latestHeight}`);
+
+      // Scan the last 5 blocks for our transaction
+      const scanFrom = Math.max(0, latestHeight - 5);
+
+      for (let h = latestHeight; h >= scanFrom; h--) {
+        const blockRes = await fetch(`${ALEO_API_BASE}/block/${h}/transactions`, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!blockRes.ok) continue;
+
+        const transactions = await blockRes.json();
+        if (!Array.isArray(transactions)) continue;
+
+        for (const confirmedTx of transactions) {
+          const tx = confirmedTx?.transaction;
+          if (!tx || tx.type !== 'execute') continue;
+
+          const transitions = tx?.execution?.transitions;
+          if (!Array.isArray(transitions)) continue;
+
+          for (const transition of transitions) {
+            if (
+              transition.program === PROGRAM_ID &&
+              transition.function === 'submit_analysis'
+            ) {
+              const txId = tx.id;
+              console.log(`   ✅ Found our transaction in block ${h}: ${txId}`);
+              console.log(`   Status: ${confirmedTx.status}`);
+              return txId;
+            }
+          }
+        }
+      }
+
+      console.log(`   Not found yet in recent blocks, waiting ${delayMs / 1000}s...`);
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+
+    } catch (error) {
+      console.warn(`   Error during polling attempt ${attempt}:`, error);
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+
+  console.warn(`⚠️ Could not find transaction after ${maxAttempts} attempts`);
+  return null;
+}
+
+/**
+ * Converts a 256-bit hex string to a decimal string for Aleo field.
  */
 function hexToFieldDecimal(hex: string): string {
   const cleanHex = hex.replace(/^0x/i, '');
 
-  // Validate hex
   if (!/^[0-9a-fA-F]+$/.test(cleanHex)) {
     throw new Error(`Invalid hex string: ${hex}`);
   }
@@ -27,7 +111,7 @@ function hexToFieldDecimal(hex: string): string {
   }
 
   let val = BigInt(`0x${cleanHex}`);
-  val = val % FIELD_PRIME; // Ensure fits in field
+  val = val % FIELD_PRIME;
 
   const result = val.toString();
   console.log(`🔢 Hex to field: ${hex.slice(0, 10)}... -> ${result.slice(0, 10)}... (${result.length} digits)`);
@@ -36,30 +120,30 @@ function hexToFieldDecimal(hex: string): string {
 }
 
 /**
- * Submits analysis result to veilnet_ai_v3.aleo::submit_analysis on Testnet Beta.
- * Assumes Leo transition inputs are marked PUBLIC (recommended for hashes/scores).
- *
- * @param params - From useWallet() hook
- * @returns Transaction ID
+ * Submits analysis result to veilnet_ai_v6.aleo::submit_analysis on Testnet Beta.
+ * All inputs are PUBLIC — no private records created, no requestRecords needed.
  */
 export async function submitToAleo({
-  requestExecution,
   requestTransaction,
-  documentHash,     // Hex string (0x-prefixed or not) of original document
-  analysisHash,     // Hex string of AI analysis result (MUST be different!)
+  requestExecution,
+  documentHash,
+  analysisHash,
   riskScore,
   timestamp,
   publicKey,
 }: {
-  requestExecution?: (tx: Transaction) => Promise<string>;
   requestTransaction?: (tx: Transaction) => Promise<string>;
+  requestExecution?: (tx: Transaction) => Promise<string>;
   documentHash: string;
   analysisHash: string;
   riskScore: number;
   timestamp: number;
   publicKey: string;
 }): Promise<string> {
-  const execute = requestExecution ?? requestTransaction;
+
+  // Always prefer requestTransaction — correct for async on-chain transitions
+  const execute = requestTransaction ?? requestExecution;
+
   if (!execute || typeof execute !== 'function') {
     throw new Error('Wallet execute function unavailable. Ensure wallet is connected.');
   }
@@ -68,14 +152,13 @@ export async function submitToAleo({
     throw new Error('No public key. Connect your wallet first.');
   }
 
-  console.log('📤 Submitting to veilnet_ai_v3.aleo::submit_analysis');
+  console.log(`📤 Submitting to ${PROGRAM_ID}::submit_analysis`);
   console.log('   Caller:', publicKey);
   console.log('   Document hash:', documentHash);
   console.log('   Analysis hash:', analysisHash);
   console.log('   Risk score:', riskScore);
   console.log('   Timestamp:', timestamp);
 
-  // Input validation
   if (riskScore < 0 || riskScore > 100 || !Number.isInteger(riskScore)) {
     throw new Error('Risk score must be integer 0–100.');
   }
@@ -84,67 +167,104 @@ export async function submitToAleo({
     throw new Error('Timestamp must be positive integer (Unix seconds).');
   }
 
-  // Convert hashes to Aleo field decimals
   const docHashField = hexToFieldDecimal(documentHash);
   const analysisHashField = hexToFieldDecimal(analysisHash);
 
-  // Prepare inputs in exact order of Leo transition
+  if (docHashField === '0') {
+    throw new Error('Document hash converts to zero field — use a different document.');
+  }
+  if (analysisHashField === '0') {
+    throw new Error('Analysis hash converts to zero field — use a different analysis result.');
+  }
+
   const inputs = [
-    `${docHashField}field`,       // document_hash: field public
-    `${analysisHashField}field`,  // analysis_hash: field public
-    `${riskScore}u8`,             // risk_score: u8 public
-    `${timestamp}u64`,            // timestamp: u64 public
-    publicKey,                    // owner: address public (caller's address)
+    `${docHashField}field`,
+    `${analysisHashField}field`,
+    `${riskScore}u8`,
+    `${timestamp}u64`,
+    publicKey,
   ];
 
   console.log('📦 Inputs prepared:', inputs);
 
   try {
-    console.log('💰 Fee: 0.75 credits (public balance) – wallet will deduct');
-
-    const programId = 'veilnet_ai_v3.aleo';
+    console.log('🔍 Pre-transaction validation:');
+    console.log('   Program ID:', PROGRAM_ID);
+    console.log('   Network: Testnet Beta');
+    console.log('   Fee (microcredits):', DEFAULT_FEE_MICRO_CREDITS);
+    console.log('   ℹ️  No requestRecords needed — all inputs public, no private Records produced.');
 
     const tx = Transaction.createTransaction(
-      publicKey,                            // payer/caller
-      WalletAdapterNetwork.TestnetBeta,     // network
-      programId,                            // program ID
-      'submit_analysis',                    // transition name
-      inputs,                               // string[] inputs
-      DEFAULT_FEE_MICRO_CREDITS,            // fee
-      false                                 // feePrivate: false → public credits (faucet-friendly)
+      publicKey,
+      WalletAdapterNetwork.TestnetBeta,
+      PROGRAM_ID,
+      'submit_analysis',
+      inputs,
+      DEFAULT_FEE_MICRO_CREDITS,
+      false // feePrivate: false → use public credits
     );
 
-    console.log('✅ Tx object ready');
-    console.log('   Network: Testnet Beta');
-    console.log('   Program: veilnet_ai_v3.aleo');
-    console.log('   Transition: submit_analysis');
-    console.log('   Fee: 750000 microcredits (public)');
-
-    console.log('🚀 Requesting execution...');
+    console.log('✅ Tx object ready, requesting execution...');
     const transactionId = await execute(tx);
 
-    console.log('✅ Success!');
-    console.log('   Tx ID:', transactionId);
-    console.log('   Explorer: https://testnet.explorer.provable.com/transaction/' + transactionId);
+    console.log('✅ Transaction submitted!');
+    console.log('   Initial ID from wallet:', transactionId);
 
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transactionId);
+    const isAleoTxId = transactionId.startsWith('at1') && transactionId.length > 60;
+
+    if (isAleoTxId) {
+      console.log('✅ Got real Aleo transaction ID immediately!');
+      console.log('   Explorer: https://testnet.explorer.provable.com/transaction/' + transactionId);
+      return transactionId;
+    }
+
+    if (isUUID) {
+      console.log('⏳ Wallet returned a UUID — polling blockchain for real transaction ID...');
+      console.log('   This is normal. Aleo ZK proofs take 30–120 seconds to finalize.');
+
+      const realTxId = await pollForRealTransactionId(transactionId);
+
+      if (realTxId) {
+        console.log('✅ Real transaction ID confirmed:', realTxId);
+        console.log('   Explorer: https://testnet.explorer.provable.com/transaction/' + realTxId);
+        return realTxId;
+      } else {
+        console.warn('⚠️ Could not auto-fetch real transaction ID.');
+        console.warn('   Your transaction was submitted and is likely still processing.');
+        console.warn(`   Check manually: https://testnet.explorer.provable.com/program/${PROGRAM_ID}/transactions`);
+        return transactionId;
+      }
+    }
+
+    console.warn('⚠️ Unexpected transaction ID format:', transactionId);
     return transactionId;
+
   } catch (error: any) {
     console.error('❌ Submission failed:', error);
+    console.error('   Error message:', error?.message);
+    console.error('   Error stack:', error?.stack);
+
+    const msg = (error?.message || '').toLowerCase();
+    const errorStr = String(error).toLowerCase();
 
     let userMessage = 'Transaction failed. Check console for details.';
 
-    const msg = (error?.message || '').toLowerCase();
-
-    if (msg.includes('insufficient') || msg.includes('fee') || msg.includes('credits')) {
-      userMessage = 'Insufficient credits. Request more at https://faucet.aleo.org/ (wait 5 min after claim). Try higher fee if persists.';
-    } else if (msg.includes('rejected')) {
-      userMessage = 'Rejected in wallet — approve the tx popup.';
-    } else if (msg.includes('input') || msg.includes('parse') || msg.includes('type') || msg.includes('expected')) {
-      userMessage = 'Input mismatch. Verify Leo program signature matches (public fields?). Check hashes are valid 64-char hex.';
-    } else if (msg.includes('not found') || msg.includes('program') || msg.includes('sync')) {
-      userMessage = 'Program not synced in wallet. Wait 10–15 min, refresh wallet, or reconnect. Confirm deployment on https://testnet.explorer.provable.com.';
-    } else if (msg.includes('network')) {
-      userMessage = 'Network mismatch — set wallet to Testnet Beta.';
+    if (msg.includes('insufficient') || msg.includes('fee') || msg.includes('credits') ||
+        msg.includes('balance') || errorStr.includes('insufficient')) {
+      userMessage = 'Insufficient credits. Request more at https://faucet.aleo.org/ (wait 5 min after claim).';
+    } else if (msg.includes('rejected') || msg.includes('denied') || msg.includes('cancelled')) {
+      userMessage = 'Transaction rejected in wallet — please approve the transaction popup.';
+    } else if (msg.includes('input') || msg.includes('parse') || msg.includes('type') ||
+               msg.includes('expected') || msg.includes('invalid')) {
+      userMessage = 'Input validation error. Check document and analysis hashes are valid 64-character hex strings.';
+    } else if (msg.includes('not found') || msg.includes('program') || msg.includes('sync') ||
+               msg.includes('veilnet_ai_v6')) {
+      userMessage = 'Program not synced in wallet. Wait 10–15 minutes for wallet to sync, then try again.';
+    } else if (msg.includes('network') || msg.includes('testnet')) {
+      userMessage = 'Network error — ensure wallet is connected to Testnet Beta.';
+    } else if (msg.includes('unknown error') || msg.includes('execution failed')) {
+      userMessage = 'Wallet execution error. Try refreshing the page and reconnecting your wallet.';
     }
 
     throw new Error(userMessage);
@@ -152,22 +272,113 @@ export async function submitToAleo({
 }
 
 /**
- * User-friendly error message mapper
+ * Verify a proof exists on-chain using the Provable API v2 mapping endpoint.
  */
+export async function verifyProofOnChain(proofId: string): Promise<boolean> {
+  try {
+    const url = `${ALEO_API_BASE}/program/${PROGRAM_ID}/mapping/proof_registry/${proofId}field`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (response.status === 404) return false;
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+    const value = await response.json();
+    return value === true;
+
+  } catch (error) {
+    console.error('Error verifying proof:', error);
+    return false;
+  }
+}
+
+/**
+ * Get verification stats from on-chain mapping.
+ * @param riskCategory - 1 (Low 1–25), 2 (Medium 26–60), 3 (High 61–85), 4 (Critical 86–100)
+ */
+export async function getVerificationStats(riskCategory: 1 | 2 | 3 | 4): Promise<number> {
+  try {
+    const url = `${ALEO_API_BASE}/program/${PROGRAM_ID}/mapping/verification_stats/${riskCategory}u8`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (response.status === 404) return 0;
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+    const value = await response.json();
+    if (typeof value === 'string') {
+      return parseInt(value.replace('u64', ''), 10) || 0;
+    }
+    return Number(value) || 0;
+
+  } catch (error) {
+    console.error('Error fetching verification stats:', error);
+    return 0;
+  }
+}
+
+/**
+ * Diagnostic check for wallet and program status.
+ * NOTE: Do NOT call requestRecords() anywhere for this program.
+ * veilnet_ai_v6.aleo uses only public inputs/mappings — zero private Records produced.
+ */
+export async function runWalletDiagnostics(publicKey?: string): Promise<{
+  walletConnected: boolean;
+  networkCorrect: boolean;
+  programDeployed: boolean;
+  suggestions: string[];
+}> {
+  const diagnostics = {
+    walletConnected: !!publicKey,
+    networkCorrect: true,
+    programDeployed: false,
+    suggestions: [] as string[],
+  };
+
+  try {
+    const res = await fetch(`${ALEO_API_BASE}/program/${PROGRAM_ID}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+    diagnostics.programDeployed = res.ok;
+  } catch {
+    diagnostics.programDeployed = false;
+  }
+
+  if (!publicKey) {
+    diagnostics.suggestions.push('Connect your Leo Wallet first.');
+  }
+
+  if (!diagnostics.programDeployed) {
+    diagnostics.suggestions.push(`Program ${PROGRAM_ID} not found on testnet. Check deployment.`);
+  }
+
+  if (diagnostics.suggestions.length === 0) {
+    diagnostics.suggestions.push('All checks passed. You are ready to submit.');
+  }
+
+  return diagnostics;
+}
+
 export function getAleoErrorMessage(error: any): string {
   const msg = (error?.message || '').toLowerCase();
 
   if (msg.includes('insufficient') || msg.includes('fee') || msg.includes('credits') || msg.includes('balance')) {
-    return '💰 Low credits. Get free Testnet credits: https://faucet.aleo.org/ (wait a few minutes).';
+    return '💰 Low credits. Get free Testnet credits: https://faucet.aleo.org/';
   }
   if (msg.includes('rejected')) {
     return 'Transaction rejected — please approve in your wallet.';
   }
   if (msg.includes('input') || msg.includes('invalid') || msg.includes('parse') || msg.includes('type')) {
-    return 'Input error — check documentHash & analysisHash are valid 64-char hex, riskScore 0-100 integer.';
+    return 'Input error — check documentHash & analysisHash are valid 64-char hex, riskScore 0–100 integer.';
   }
   if (msg.includes('not found') || msg.includes('program') || msg.includes('veilnet_ai') || msg.includes('sync')) {
-    return 'Wallet not synced with program. Wait 10-15 min, refresh, reconnect, or update wallet app.';
+    return 'Wallet not synced with program. Wait 10–15 min, refresh, reconnect wallet.';
   }
   if (msg.includes('network')) {
     return 'Wallet on wrong network — switch to Testnet Beta.';
