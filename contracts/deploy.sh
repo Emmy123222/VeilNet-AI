@@ -60,7 +60,7 @@ if [ $? -eq 0 ]; then
     echo "✅ Deployment successful!"
     echo ""
     echo "🔍 Verify on Aleo Explorer:"
-    echo "   https://testnet.explorer.provable.com/program/veilnet_ai_v6.aleo"
+    echo "   https://testnet.explorer.provable.com/program/veilnet_ai_v7.aleo"
     echo ""
     echo "📝 Next steps:"
     echo "   1. Copy the transaction ID from the output above"

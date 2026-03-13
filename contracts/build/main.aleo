@@ -1,4 +1,12 @@
-program veilnet_ai_v6.aleo;
+program veilnet_ai_v7.aleo;
+
+record AnalysisProof:
+    owner as address.private;
+    document_hash as field.private;
+    analysis_hash as field.private;
+    risk_score as u8.private;
+    timestamp as u64.private;
+    verification_key as field.private;
 
 mapping proof_registry:
     key as field.public;
@@ -24,18 +32,24 @@ function submit_analysis:
     assert.neq r1 0field;
     assert.neq r0 r1;
     assert.neq r3 0u64;
+    assert.eq r4 self.caller;
     hash.bhp256 r0 into r6 as field;
-    hash.bhp256 r4 into r7 as field;
-    add r0 r1 into r8;
-    cast r2 into r9 as field;
-    add r8 r9 into r10;
-    cast r3 into r11 as field;
-    add r10 r11 into r12;
-    hash.bhp256 r12 into r13 as field;
-    add r13 r7 into r14;
-    hash.bhp256 r14 into r15 as field;
-    async submit_analysis r6 r0 r15 r2 into r16;
-    output r16 as veilnet_ai_v6.aleo/submit_analysis.future;
+    add r0 r1 into r7;
+    cast r3 into r8 as field;
+    add r7 r8 into r9;
+    hash.bhp256 r9 into r10 as field;
+    cast r4 r0 r1 r2 r3 r10 into r11 as AnalysisProof.record;
+    hash.bhp256 r4 into r12 as field;
+    cast r2 into r13 as field;
+    add r7 r13 into r14;
+    cast r3 into r15 as field;
+    add r14 r15 into r16;
+    hash.bhp256 r16 into r17 as field;
+    add r17 r12 into r18;
+    hash.bhp256 r18 into r19 as field;
+    async submit_analysis r6 r0 r19 r2 into r20;
+    output r11 as AnalysisProof.record;
+    output r20 as veilnet_ai_v7.aleo/submit_analysis.future;
 
 finalize submit_analysis:
     input r0 as field.public;
@@ -56,10 +70,22 @@ finalize submit_analysis:
     add r11 1u64 into r12;
     set r12 into verification_stats[r10];
 
+function verify_proof_ownership:
+    input r0 as AnalysisProof.record;
+    input r1 as field.private;
+    assert.eq r0.owner self.caller;
+    assert.eq r0.document_hash r1;
+    add r0.document_hash r0.analysis_hash into r2;
+    cast r0.timestamp into r3 as field;
+    add r2 r3 into r4;
+    hash.bhp256 r4 into r5 as field;
+    assert.eq r0.verification_key r5;
+    output true as boolean.private;
+
 function verify_proof_exists:
     input r0 as field.private;
     async verify_proof_exists r0 into r1;
-    output r1 as veilnet_ai_v6.aleo/verify_proof_exists.future;
+    output r1 as veilnet_ai_v7.aleo/verify_proof_exists.future;
 
 finalize verify_proof_exists:
     input r0 as field.public;
@@ -69,7 +95,7 @@ finalize verify_proof_exists:
 function get_verification_stats:
     input r0 as u8.private;
     async get_verification_stats r0 into r1;
-    output r1 as veilnet_ai_v6.aleo/get_verification_stats.future;
+    output r1 as veilnet_ai_v7.aleo/get_verification_stats.future;
 
 finalize get_verification_stats:
     input r0 as u8.public;

@@ -330,7 +330,7 @@ export function AleoResultCard({ aleoResult, analysisResult, onReset }: AleoResu
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Program:</span>
-              <code className="font-mono">veilnet_ai_v6.aleo</code>
+              <code className="font-mono">veilnet_ai_v7.aleo</code>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Function:</span>

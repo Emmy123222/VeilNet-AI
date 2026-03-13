@@ -54,7 +54,7 @@ export function WalletTroubleshooting({ title, message, suggestions, onRetry }: 
             variant="outline" 
             size="sm" 
             className="border-orange-300 text-orange-700 hover:bg-orange-100"
-            onClick={() => window.open('https://testnet.explorer.provable.com/program/veilnet_ai_v6.aleo', '_blank')}
+            onClick={() => window.open('https://testnet.explorer.provable.com/program/veilnet_ai_v7.aleo', '_blank')}
           >
             <ExternalLink className="h-3 w-3 mr-1" />
             View Program

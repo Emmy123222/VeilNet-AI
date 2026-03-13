@@ -1,4 +1,4 @@
-// Aleo transaction submission logic for veilnet_ai_v6.aleo::submit_analysis
+// Aleo transaction submission logic for veilnet_ai_v7.aleo::submit_analysis
 
 import {
   Transaction,
@@ -12,7 +12,7 @@ const FIELD_PRIME = BigInt('8444461749428370424248824938781546531375899830566350
 
 // ✅ Correct Provable API v2 base
 const ALEO_API_BASE = 'https://api.provable.com/v2/testnet';
-const PROGRAM_ID = 'veilnet_ai_v6.aleo';
+const PROGRAM_ID = 'veilnet_ai_v7.aleo';
 
 /**
  * Polls the Provable API v2 to find the real Aleo transaction ID
@@ -20,8 +20,8 @@ const PROGRAM_ID = 'veilnet_ai_v6.aleo';
  */
 async function pollForRealTransactionId(
   _uuid: string,
-  maxAttempts: number = 12,
-  delayMs: number = 5000
+  maxAttempts: number = 20,
+  delayMs: number = 3000
 ): Promise<string | null> {
   console.log(`🔍 Polling Provable API v2 for real transaction ID...`);
   console.log(`   Program: ${PROGRAM_ID}`);
@@ -45,8 +45,8 @@ async function pollForRealTransactionId(
       const latestHeight: number = await heightRes.json();
       console.log(`   Latest block height: ${latestHeight}`);
 
-      // Scan the last 5 blocks for our transaction
-      const scanFrom = Math.max(0, latestHeight - 5);
+      // Scan the last 10 blocks for our transaction (increased from 5)
+      const scanFrom = Math.max(0, latestHeight - 10);
 
       for (let h = latestHeight; h >= scanFrom; h--) {
         const blockRes = await fetch(`${ALEO_API_BASE}/block/${h}/transactions`, {
@@ -93,6 +93,7 @@ async function pollForRealTransactionId(
   }
 
   console.warn(`⚠️ Could not find transaction after ${maxAttempts} attempts`);
+  console.warn(`   Transaction was submitted but may still be processing`);
   return null;
 }
 
@@ -101,26 +102,26 @@ async function pollForRealTransactionId(
  */
 function hexToFieldDecimal(hex: string): string {
   const cleanHex = hex.replace(/^0x/i, '');
-
+  
   if (!/^[0-9a-fA-F]+$/.test(cleanHex)) {
     throw new Error(`Invalid hex string: ${hex}`);
   }
-
+  
   if (cleanHex.length !== 64) {
     throw new Error(`Expected 64 hex characters (256-bit hash), got ${cleanHex.length}`);
   }
 
   let val = BigInt(`0x${cleanHex}`);
   val = val % FIELD_PRIME;
-
+  
   const result = val.toString();
   console.log(`🔢 Hex to field: ${hex.slice(0, 10)}... -> ${result.slice(0, 10)}... (${result.length} digits)`);
-
+  
   return result;
 }
 
 /**
- * Submits analysis result to veilnet_ai_v6.aleo::submit_analysis on Testnet Beta.
+ * Submits analysis result to veilnet_ai_v7.aleo::submit_analysis on Testnet Beta.
  * All inputs are PUBLIC — no private records created, no requestRecords needed.
  */
 export async function submitToAleo({
@@ -230,10 +231,8 @@ export async function submitToAleo({
         console.log('   Explorer: https://testnet.explorer.provable.com/transaction/' + realTxId);
         return realTxId;
       } else {
-        console.warn('⚠️ Could not auto-fetch real transaction ID.');
-        console.warn('   Your transaction was submitted and is likely still processing.');
-        console.warn(`   Check manually: https://testnet.explorer.provable.com/program/${PROGRAM_ID}/transactions`);
-        return transactionId;
+        // Don't return UUID - keep polling or throw error
+        throw new Error('Transaction submitted but real transaction ID not found yet. Please check the explorer manually or try again in a few minutes.');
       }
     }
 
@@ -259,7 +258,7 @@ export async function submitToAleo({
                msg.includes('expected') || msg.includes('invalid')) {
       userMessage = 'Input validation error. Check document and analysis hashes are valid 64-character hex strings.';
     } else if (msg.includes('not found') || msg.includes('program') || msg.includes('sync') ||
-               msg.includes('veilnet_ai_v6')) {
+               msg.includes('veilnet_ai_v7')) {
       userMessage = 'Program not synced in wallet. Wait 10–15 minutes for wallet to sync, then try again.';
     } else if (msg.includes('network') || msg.includes('testnet')) {
       userMessage = 'Network error — ensure wallet is connected to Testnet Beta.';
@@ -277,7 +276,6 @@ export async function submitToAleo({
 export async function verifyProofOnChain(proofId: string): Promise<boolean> {
   try {
     const url = `${ALEO_API_BASE}/program/${PROGRAM_ID}/mapping/proof_registry/${proofId}field`;
-
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
@@ -288,7 +286,6 @@ export async function verifyProofOnChain(proofId: string): Promise<boolean> {
 
     const value = await response.json();
     return value === true;
-
   } catch (error) {
     console.error('Error verifying proof:', error);
     return false;
@@ -302,7 +299,6 @@ export async function verifyProofOnChain(proofId: string): Promise<boolean> {
 export async function getVerificationStats(riskCategory: 1 | 2 | 3 | 4): Promise<number> {
   try {
     const url = `${ALEO_API_BASE}/program/${PROGRAM_ID}/mapping/verification_stats/${riskCategory}u8`;
-
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
@@ -316,7 +312,6 @@ export async function getVerificationStats(riskCategory: 1 | 2 | 3 | 4): Promise
       return parseInt(value.replace('u64', ''), 10) || 0;
     }
     return Number(value) || 0;
-
   } catch (error) {
     console.error('Error fetching verification stats:', error);
     return 0;
@@ -326,7 +321,7 @@ export async function getVerificationStats(riskCategory: 1 | 2 | 3 | 4): Promise
 /**
  * Diagnostic check for wallet and program status.
  * NOTE: Do NOT call requestRecords() anywhere for this program.
- * veilnet_ai_v6.aleo uses only public inputs/mappings — zero private Records produced.
+ * veilnet_ai_v7.aleo uses only public inputs/mappings — zero private Records produced.
  */
 export async function runWalletDiagnostics(publicKey?: string): Promise<{
   walletConnected: boolean;
@@ -371,17 +366,22 @@ export function getAleoErrorMessage(error: any): string {
   if (msg.includes('insufficient') || msg.includes('fee') || msg.includes('credits') || msg.includes('balance')) {
     return '💰 Low credits. Get free Testnet credits: https://faucet.aleo.org/';
   }
+
   if (msg.includes('rejected')) {
     return 'Transaction rejected — please approve in your wallet.';
   }
+
   if (msg.includes('input') || msg.includes('invalid') || msg.includes('parse') || msg.includes('type')) {
     return 'Input error — check documentHash & analysisHash are valid 64-char hex, riskScore 0–100 integer.';
   }
+
   if (msg.includes('not found') || msg.includes('program') || msg.includes('veilnet_ai') || msg.includes('sync')) {
     return 'Wallet not synced with program. Wait 10–15 min, refresh, reconnect wallet.';
   }
+
   if (msg.includes('network')) {
     return 'Wallet on wrong network — switch to Testnet Beta.';
   }
+
   return `Error: ${error.message || 'Unknown'}. See console logs.`;
 }

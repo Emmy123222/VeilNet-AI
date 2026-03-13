@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
 import { useWalletPersistence } from '@/hooks/use-wallet-persistence'
+import { storeTransaction } from '@/lib/transaction-storage'
 import { submitToAleo, getAleoErrorMessage } from '@/lib/aleo-transaction'
 import { checkWalletBalance, formatCredits, hasSufficientCredits } from '@/lib/wallet-utils'
 import { analyzeDocumentClientSide, ClientAnalysisResult } from '@/lib/client-analysis'
@@ -173,6 +174,20 @@ export default function UploadPage() {
                 publicKey
               })
               
+              // Store transaction in local storage for proof history
+              storeTransaction({
+                id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                transactionId: txId,
+                documentHash: data.analysis.documentHash,
+                analysisHash: data.analysis.analysisHash,
+                riskScore: data.analysis.riskScore,
+                riskLevel: data.analysis.riskLevel,
+                timestamp: data.analysis.timestamp,
+                walletAddress: publicKey.toString(),
+                status: 'pending'
+              })
+              console.log('✅ Image analysis transaction stored in local storage')
+              
               setAleoResult({
                 transactionId: txId,
                 status: 'confirmed',
@@ -268,6 +283,22 @@ export default function UploadPage() {
           })
 
           console.log('✅ Blockchain proof submission successful:', transactionId)
+
+          // Store transaction in local storage for proof history
+          if (publicKey) {
+            storeTransaction({
+              id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              transactionId: transactionId,
+              documentHash: clientAnalysis.documentHash,
+              analysisHash: clientAnalysis.analysisHash,
+              riskScore: clientAnalysis.riskScore,
+              riskLevel: clientAnalysis.riskLevel,
+              timestamp: clientAnalysis.timestamp,
+              walletAddress: publicKey.toString(),
+              status: 'pending'
+            })
+            console.log('✅ Transaction stored in local storage for proof history')
+          }
 
           // Step 3: Store proof metadata locally (no sensitive data to server)
           const proofResponse = await fetch('/api/proofs/submit', {

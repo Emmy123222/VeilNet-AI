@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useWallet } from '@/lib/aleo-wallet-provider'
 
-const PROGRAM_ID = 'veilnet_ai_v6.aleo'
+const PROGRAM_ID = 'veilnet_ai_v7.aleo'
 const ALEO_API_BASE = 'https://api.provable.com/v2/testnet'
 
 interface ProofVerification {

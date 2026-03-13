@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'crypto'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,52 +14,29 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // In production, this would query a database
-    // For demo, generate deterministic history based on wallet address
-    const walletSeed = createHash('sha256').update(walletAddress).digest('hex')
-    const historyCount = Math.min(50, parseInt(walletSeed.slice(0, 2), 16) % 20 + 5)
+    // For now, return empty array with instructions
+    // The real data will come from local storage in the frontend
+    const proofs: any[] = []
     
-    const proofs = []
-    for (let i = offset; i < Math.min(offset + limit, historyCount); i++) {
-      const proofSeed = createHash('sha256').update(walletAddress + i.toString()).digest('hex')
-      const timestamp = new Date(Date.now() - (i * 86400000 + parseInt(proofSeed.slice(0, 8), 16) % 86400000))
-      
-      const proofHash = '0x' + proofSeed
-      const transactionId = 'at1' + createHash('sha256').update(proofHash + i.toString()).digest('hex').slice(0, 60)
-      
-      const riskScore = parseInt(proofSeed.slice(8, 10), 16) % 100
-      const status = ['confirmed', 'confirmed', 'confirmed', 'pending', 'failed'][i % 5]
-      
-      proofs.push({
-        id: i + 1,
-        proofHash,
-        transactionId,
-        documentHash: '0x' + createHash('sha256').update(`doc_${i}`).digest('hex'),
-        riskScore,
-        status,
-        timestamp: timestamp.toISOString(),
-        blockHeight: Math.floor(timestamp.getTime() / 1000),
-        explorerUrl: `https://testnet.explorer.provable.com/transaction/${transactionId}`,
-        documentType: ['PDF', 'Text', 'Image', 'DOCX'][i % 4],
-        riskLevel: riskScore < 30 ? 'Low' : riskScore < 70 ? 'Medium' : 'High'
-      })
+    // Calculate wallet stats (empty for now)
+    const walletStats = {
+      totalProofs: 0,
+      confirmedProofs: 0,
+      averageRiskScore: 0,
+      lastActivity: null
     }
 
     return NextResponse.json({
       success: true,
       proofs,
       pagination: {
-        total: historyCount,
+        total: proofs.length,
         limit,
         offset,
-        hasMore: offset + limit < historyCount
+        hasMore: false
       },
-      walletStats: {
-        totalProofs: historyCount,
-        confirmedProofs: proofs.filter(p => p.status === 'confirmed').length,
-        averageRiskScore: Math.round(proofs.reduce((sum, p) => sum + p.riskScore, 0) / proofs.length),
-        lastActivity: proofs[0]?.timestamp
-      }
+      walletStats,
+      message: 'Proof history is now tracked locally. Your transactions will appear here after you submit them to the blockchain.'
     })
 
   } catch (error: any) {

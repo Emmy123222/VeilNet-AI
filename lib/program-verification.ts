@@ -2,7 +2,7 @@
  * Utility to verify if the Aleo program is deployed and accessible
  */
 
-export async function verifyProgramDeployment(programId: string = 'veilnet_ai_v6.aleo'): Promise<{
+export async function verifyProgramDeployment(programId: string = 'veilnet_ai_v7.aleo'): Promise<{
   isDeployed: boolean;
   error?: string;
   explorerUrl?: string;
