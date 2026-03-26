@@ -42,7 +42,7 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
 
 ### Prerequisites
 - Node.js 18+ and npm/pnpm
-- Aleo wallet (Leo Wallet browser extension)
+- Aleo wallet (Shield Wallet recommended - official Aleo wallet)
 - Git
 
 ### Installation
@@ -84,13 +84,14 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
 
 ### Wallet Setup
 
-1. **Install Leo Wallet**
-   - Visit [Leo App](https://app.leo.app/)
-   - Follow the installation instructions for your browser
+1. **Install Shield Wallet (Recommended)**
+   - Visit [Shield Wallet](https://aleo.org/shield)
+   - Download and install the browser extension
    - Pin the extension to your browser toolbar for easy access
+   - Shield Wallet is the official Aleo wallet with full testnet support
 
 2. **Create or Import Wallet**
-   - Click the Leo Wallet extension icon
+   - Click the Shield Wallet extension icon
    - Choose "Create New Wallet" or "Import Existing Wallet"
    - Follow the setup instructions and securely store your seed phrase
    - Set a strong password for your wallet
@@ -98,14 +99,14 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
 3. **Connect to VeilNet AI**
    - Visit the VeilNet AI homepage
    - Click "Connect Wallet & Start"
-   - Authorize the connection in the Leo Wallet popup
+   - Authorize the connection in the Shield Wallet popup
    - Your wallet address will appear in the header once connected
 
 ## 📱 Usage
 
 ### 1. Connect Wallet
 - Visit the VeilNet AI homepage
-- Click "Connect Wallet" and authorize Leo Wallet
+- Click "Connect Wallet" and authorize Shield Wallet (or other Aleo wallet)
 - Your wallet address will be displayed in the header
 
 ### 2. Upload & Analyze

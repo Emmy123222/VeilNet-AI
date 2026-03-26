@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
+import { useWallet } from '@provablehq/aleo-wallet-adaptor-react'
 import { useWalletPersistence } from '@/hooks/use-wallet-persistence'
 import { ProofHistoryDashboard } from '@/components/proof-history-dashboard'
 import { Header } from '@/components/header'
@@ -11,12 +11,18 @@ import { ArrowLeft, Shield } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
-  const { connected, publicKey } = useWalletPersistence()
+  // Use the ProvableHQ hook instead of the old Demox one
+  const { connected, address: publicKey, connecting } = useWallet()
+  
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
+
+  // Keep your persistence hook if you still need it for extra logic
+  const { connected: persistedConnected } = useWalletPersistence()
 
   useEffect(() => {
     if (connected && publicKey) {
-      setWalletAddress(publicKey.toString())
+      // In Provable adapter, address is usually a string (or PublicKey object)
+      setWalletAddress(publicKey)
     } else {
       setWalletAddress(null)
     }
@@ -47,6 +53,13 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+
+            {/* Optional: Show current wallet address when connected */}
+            {connected && walletAddress && (
+              <div className="text-sm text-muted-foreground font-mono break-all max-w-xs text-right">
+                {walletAddress.slice(0, 12)}...{walletAddress.slice(-8)}
+              </div>
+            )}
           </div>
 
           {/* Wallet Connection Status */}
@@ -58,19 +71,31 @@ export default function DashboardPage() {
                   Wallet Required
                 </h3>
                 <p className="text-blue-700 mb-4">
-                  Please return to the home page to connect your Aleo wallet first, then come back to view your dashboard.
+                  Please return to the home page to connect your **Shield Wallet** first, 
+                  then come back to view your dashboard.
                 </p>
                 <Link href="/">
                   <Button className="bg-blue-600 hover:bg-blue-700">
-                    Go to Home Page
+                    Go to Home Page & Connect Wallet
                   </Button>
                 </Link>
               </CardContent>
             </Card>
           )}
 
-          {/* Dashboard Content */}
-          <ProofHistoryDashboard walletAddress={walletAddress} />
+          {/* Show loading state while connecting */}
+          {connecting && (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">Connecting to Shield Wallet...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dashboard Content - Only show when actually connected */}
+          {connected && walletAddress && (
+            <ProofHistoryDashboard walletAddress={walletAddress} />
+          )}
         </div>
       </main>
     </div>

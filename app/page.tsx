@@ -3,8 +3,8 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Image, Brain, Shield } from 'lucide-react'
-import { WalletMultiButton } from '@demox-labs/aleo-wallet-adapter-reactui'
+import { FileText, Image, Brain, Shield, CheckCircle } from 'lucide-react'
+import { WalletMultiButton } from '@provablehq/aleo-wallet-adaptor-react-ui'
 import { useRouter } from 'next/navigation'
 import { useWalletPersistence } from '@/hooks/use-wallet-persistence'
 import { LandingHero } from '@/components/landing-hero'
@@ -13,16 +13,27 @@ import { WalletConnectCard } from '@/components/wallet-connect-card'
 import Link from 'next/link'
 
 export default function HomePage() {
-  const { connected, connecting, publicKey } = useWalletPersistence()
+  const { 
+    connected, 
+    connecting, 
+    publicKey, 
+    storedWalletName 
+  } = useWalletPersistence()
+
   const router = useRouter()
 
   const handleGetStarted = () => {
     if (connected) {
       router.push('/upload')
     } else {
-      const walletButton = document.querySelector('.wallet-adapter-button')
-      if (walletButton) {
-        walletButton.scrollIntoView({ behavior: 'smooth' })
+      // Scroll to wallet connect section
+      const walletSection = document.getElementById('wallet-connect-section')
+      if (walletSection) {
+        walletSection.scrollIntoView({ behavior: 'smooth' })
+      } else {
+        // Fallback: scroll to WalletMultiButton
+        const walletButton = document.querySelector('.wallet-adapter-button')
+        walletButton?.scrollIntoView({ behavior: 'smooth' })
       }
     }
   }
@@ -51,7 +62,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Header */}
-      <header className="border-b border-border/40 backdrop-blur-sm">
+      <header className="border-b border-border/40 backdrop-blur-sm sticky top-0 z-50 bg-background/95">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
@@ -73,11 +84,11 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center space-x-4">
-            {connected ? (
+            {connected && publicKey ? (
               <div className="flex items-center space-x-3">
                 <Badge variant="secondary" className="font-mono text-xs bg-green-50 text-green-700 border-green-200">
-                  <Shield className="w-3 h-3 mr-1" />
-                  {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-8)}
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  {`${publicKey.slice(0, 8)}...${publicKey.slice(-8)}`}
                 </Badge>
                 <Link href="/upload">
                   <Button size="sm">
@@ -106,10 +117,10 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Shield className="h-5 w-5 mr-2 text-primary" />
-                Welcome Back!
+                Welcome Back to VeilNet AI
               </CardTitle>
               <CardDescription>
-                Your wallet is connected. Choose an action to get started.
+                Your Shield Wallet is connected. Ready to analyze documents privately?
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -120,14 +131,22 @@ export default function HomePage() {
                     Upload & Analyze
                   </Button>
                 </Link>
+                <Link href="/batch-analyze">
+                  <Button className="w-full h-20 flex-col" variant="outline">
+                    <FileText className="h-6 w-6 mb-2" />
+                    Batch Analysis
+                  </Button>
+                </Link>
                 <Link href="/verify-proof">
                   <Button className="w-full h-20 flex-col" variant="outline">
                     <Shield className="h-6 w-6 mb-2" />
                     Verify Proof
                   </Button>
                 </Link>
+              </div>
+              <div className="mt-4">
                 <Link href="/dashboard">
-                  <Button className="w-full h-20 flex-col" variant="outline">
+                  <Button className="w-full h-16 flex-col" variant="outline">
                     <Shield className="h-6 w-6 mb-2" />
                     View Dashboard
                   </Button>
@@ -138,9 +157,9 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Wallet Connect */}
+      {/* Wallet Connect Section */}
       {!connected && (
-        <div className="container mx-auto px-4 max-w-4xl">
+        <div id="wallet-connect-section" className="container mx-auto px-4 max-w-4xl">
           <WalletConnectCard />
         </div>
       )}
@@ -161,8 +180,11 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {useCases.map((useCase, index) => (
-            <Card key={index} className="hover:border-primary/50 transition-all duration-200 cursor-pointer hover:shadow-lg"
-                  onClick={() => router.push(useCase.link)}>
+            <Card 
+              key={index} 
+              className="hover:border-primary/50 transition-all duration-200 cursor-pointer hover:shadow-lg"
+              onClick={() => router.push(useCase.link)}
+            >
               <CardHeader>
                 <useCase.icon className="h-10 w-10 text-primary mb-4" />
                 <CardTitle>{useCase.title}</CardTitle>
@@ -221,15 +243,15 @@ export default function HomePage() {
           <CardHeader>
             <CardTitle className="text-3xl">Ready to Get Started?</CardTitle>
             <CardDescription className="text-lg">
-              Connect your wallet and start analyzing with privacy-preserving AI
+              Connect your Shield Wallet and start analyzing with full privacy on Aleo
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button size="lg" onClick={handleGetStarted} className="text-lg px-8 py-6">
-              {connected ? 'Launch App' : 'Connect Wallet & Start'}
+              {connected ? 'Launch App' : 'Connect Shield Wallet & Start'}
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
-              No registration required • Zero-knowledge proofs • Blockchain verified
+              No registration required • Zero-knowledge proofs • Powered by Shield Wallet
             </p>
           </CardContent>
         </Card>
@@ -247,7 +269,7 @@ export default function HomePage() {
                 <span className="font-bold">VeilNet AI</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Private AI inference with zero-knowledge proofs on Aleo blockchain.
+                Private AI inference with zero-knowledge proofs on the Aleo blockchain.
               </p>
             </div>
 
@@ -255,6 +277,7 @@ export default function HomePage() {
               <h4 className="font-semibold mb-4">Product</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <Link href="/upload" className="block hover:text-foreground transition-colors">Upload & Analyze</Link>
+                <Link href="/batch-analyze" className="block hover:text-foreground transition-colors">Batch Analysis</Link>
                 <Link href="/verify-proof" className="block hover:text-foreground transition-colors">Verify Proof</Link>
                 <Link href="/dashboard" className="block hover:text-foreground transition-colors">Dashboard</Link>
               </div>
@@ -274,15 +297,15 @@ export default function HomePage() {
               <h4 className="font-semibold mb-4">Technology</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div>Aleo Blockchain</div>
+                <div>Shield Wallet</div>
                 <div>Zero-Knowledge Proofs</div>
                 <div>Private AI Inference</div>
-                <div>Groq LLM</div>
               </div>
             </div>
           </div>
 
           <div className="border-t border-border/40 mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 VeilNet AI. Built on Aleo blockchain for privacy-preserving AI inference.</p>
+            <p>© 2026 VeilNet AI. Built with Shield Wallet on Aleo for maximum privacy.</p>
           </div>
         </div>
       </footer>

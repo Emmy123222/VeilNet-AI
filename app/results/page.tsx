@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ModelReputationCard } from '@/components/model-reputation-card'
+import { ProofSharingCard } from '@/components/proof-sharing-card'
 import { 
   ArrowLeft,
   Search,
@@ -34,7 +36,7 @@ interface AnalysisResult {
 }
 
 export default function ResultsPage() {
-  const { connected, publicKey } = useWallet()
+  const { connected, address: publicKey } = useWallet()
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
@@ -399,6 +401,18 @@ export default function ResultsPage() {
                       This zero-knowledge proof verifies the analysis was performed correctly without exposing your data.
                     </p>
                   </div>
+                  
+                  {/* Wave 4: Model Reputation */}
+                  <ModelReputationCard
+                    modelName="Llama 3.3 70B"
+                    modelProvider="Groq"
+                  />
+                  
+                  {/* Wave 4: Proof Sharing */}
+                  <ProofSharingCard
+                    proofId={selectedResult.id}
+                    transactionId={selectedResult.proofHash}
+                  />
                   
                   <div className="flex space-x-2">
                     <Button onClick={() => router.push(`/verify-proof?hash=${selectedResult.proofHash}`)}>

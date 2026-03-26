@@ -9,18 +9,18 @@ export function WalletConnectCard() {
       <CardHeader>
         <CardTitle className="flex items-center justify-center">
           <img src="/veilnet-logo.png" alt="VeilNet AI" className="h-5 w-5 mr-2 object-contain" />
-          Connect Your Leo Wallet
+          Connect Your Aleo Wallet
         </CardTitle>
         <CardDescription>
-          Connect your Leo Wallet to start using VeilNet AI for private analysis.
+          Connect your Shield Wallet (or other Aleo wallet) to start using VeilNet AI for private analysis.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <WalletMultiButton />
         <p className="text-sm text-muted-foreground mt-4">
-          Don't have Leo Wallet?{' '}
+          Don't have Shield Wallet?{' '}
           <a 
-            href="https://app.leo.app/" 
+            href="https://aleo.org/shield" 
             target="_blank" 
             rel="noopener noreferrer" 
             className="text-primary hover:underline"

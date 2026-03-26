@@ -1,93 +1,84 @@
 'use client'
 
 import React from 'react'
-import { WalletProvider } from '@demox-labs/aleo-wallet-adapter-react'
-import { LeoWalletAdapter } from '@demox-labs/aleo-wallet-adapter-leo'
-import { WalletModalProvider } from '@demox-labs/aleo-wallet-adapter-reactui'
-import { DecryptPermission, WalletAdapterNetwork } from '@demox-labs/aleo-wallet-adapter-base'
-import type { Adapter } from '@demox-labs/aleo-wallet-adapter-base'
+import { AleoWalletProvider as ProvableAleoWalletProvider } from '@provablehq/aleo-wallet-adaptor-react'
+import { ShieldWalletAdapter } from '@provablehq/aleo-wallet-adaptor-shield'
+import { WalletModalProvider } from '@provablehq/aleo-wallet-adaptor-react-ui'
+import { Network } from '@provablehq/aleo-types'
 
-// Import styles (ensure this is loaded once)
-import '@demox-labs/aleo-wallet-adapter-reactui/styles.css'
+// Import styles (note the correct path used in official examples)
+import '@provablehq/aleo-wallet-adaptor-react-ui/dist/styles.css'
 
 interface AleoWalletProviderProps {
   children: React.ReactNode
 }
 
 export default function AleoWalletProvider({ children }: AleoWalletProviderProps) {
-  const wallets = React.useMemo((): Adapter[] => {
+  const wallets = React.useMemo(() => {
     try {
-      console.log('🔄 Creating Leo Wallet Adapter...')
+      console.log('🔄 Creating Shield Wallet Adapter...')
 
-      const leoWallet = new LeoWalletAdapter({
-        appName: 'VeilNet AI',
+      const shieldWallet = new ShieldWalletAdapter({
+        appName: 'VeilNet AI',        // Good to keep for branding
       })
 
-      console.log('✅ Leo Wallet Adapter created successfully')
-      return [leoWallet]
+      console.log('✅ Shield Wallet Adapter created successfully')
+      return [shieldWallet]
     } catch (error) {
-      console.error('❌ Error creating wallet adapters:', error)
-      return [] // Fallback to prevent provider crash
+      console.error('❌ Error creating Shield Wallet Adapter:', error)
+      return []
     }
   }, [])
 
   const handleError = React.useCallback((error: any) => {
-    console.group('🚨 Wallet Provider Error')
+    console.group('🚨 Aleo Wallet Error')
 
     const errorDetails = {
-      message: error?.message || 'No error message provided',
-      name: error?.name || 'UnknownError',
-      stack: error?.stack,
-      error: error?.toString(),
+      message: error?.message || 'Unknown error',
+      name: error?.name,
       code: error?.code,
     }
 
     console.error('Error Details:', errorDetails)
 
-    let userFriendlyMessage = 'Failed to connect or perform wallet action. '
+    let userMessage = 'Wallet action failed. '
 
-    if (error?.message?.includes('NETWORK_NOT_GRANTED')) {
-      userFriendlyMessage += 'Please grant network access in your Leo Wallet settings.'
-      console.log('💡 Solution: Grant network access in Leo Wallet')
-    } else if (error?.message?.includes('unknown error') || !error?.message) {
-      // Strengthened check for generic unknown errors
-      userFriendlyMessage +=
-        'Please ensure Leo Wallet is installed, updated, and switched to **Testnet Beta**. ' +
-        'Also check your balance and permissions.'
-      console.log('💡 Solution: Install/update Leo Wallet and switch to Testnet Beta')
-    } else if (error?.message?.includes('User rejected')) {
-      userFriendlyMessage = 'Connection or action was rejected. Please approve in the wallet.'
-      console.log('💡 Solution: Approve the request in Leo Wallet')
+    if (error?.message?.includes('NETWORK_NOT_GRANTED') || error?.message?.includes('network')) {
+      userMessage += 'Please allow Testnet access in Shield Wallet settings.'
+    } else if (error?.message?.includes('User rejected') || error?.message?.includes('rejected')) {
+      userMessage = 'Request was rejected. Please approve it in Shield Wallet.'
+    } else if (!error?.message || error?.message.includes('unknown')) {
+      userMessage += 'Make sure Shield Wallet is installed, updated, and connected to **Testnet**. '
+      userMessage += 'Download it from https://aleo.org/shield or https://www.shield.app/'
     } else {
-      userFriendlyMessage += 'Please try again, restart your browser, or reinstall the wallet extension.'
-      console.log('💡 Solution: Retry or reinstall Leo Wallet')
+      userMessage += 'Please try again or restart your browser/extension.'
     }
 
-    console.log('📢 User-friendly error:', userFriendlyMessage)
+    console.log('💡 User message:', userMessage)
     console.groupEnd()
 
-    // Optional: Show UI notification here (e.g., toast.error(userFriendlyMessage))
-    // import toast from 'react-hot-toast'; toast.error(userFriendlyMessage);
-
-    // Still don't re-throw to avoid crashes
+    // Optional: You can also show a toast/notification here
   }, [])
 
-  console.log('🎯 Rendering WalletProvider with', wallets.length, 'wallets')
+  console.log(`🎯 Rendering AleoWalletProvider with ${wallets.length} wallet(s)`)
 
   return (
-    <WalletProvider
+    <ProvableAleoWalletProvider
       wallets={wallets}
-      network={WalletAdapterNetwork.TestnetBeta} // Correct and current for testnet
-      autoConnect={true} // Enable auto-connect for persistence
+      network={Network.TESTNET}           // ← Fixed: Use Network from @provablehq/aleo-types
+      autoConnect={true}
       onError={handleError}
     >
       <WalletModalProvider>
         {children}
       </WalletModalProvider>
-    </WalletProvider>
+    </ProvableAleoWalletProvider>
   )
 }
 
-// Re-exports (unchanged)
-export { useWallet } from '@demox-labs/aleo-wallet-adapter-react'
-export { WalletMultiButton, WalletDisconnectButton } from '@demox-labs/aleo-wallet-adapter-reactui'
+// Re-exports (clean and useful)
+export { useWallet } from '@provablehq/aleo-wallet-adaptor-react'
+export { 
+  WalletMultiButton, 
+  WalletDisconnectButton 
+} from '@provablehq/aleo-wallet-adaptor-react-ui'

@@ -4,10 +4,11 @@ import { Header } from '@/components/header';
 import { PrivacyCard } from '@/components/privacy-card';
 import { EncryptionMonitor } from '@/components/encryption-monitor';
 import { PrivacyControls } from '@/components/privacy-controls';
+import { AIProviderSelector } from '@/components/ai-provider-selector';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lock, FileJson, Zap } from 'lucide-react';
+import { Lock, FileJson, Zap, Cpu } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
@@ -32,10 +33,14 @@ export default function SettingsPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="privacy" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-secondary">
+          <TabsList className="grid w-full grid-cols-4 bg-secondary">
             <TabsTrigger value="privacy" className="gap-2">
               <Lock className="w-4 h-4" />
               <span className="hidden sm:inline">Privacy</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai-provider" className="gap-2">
+              <Cpu className="w-4 h-4" />
+              <span className="hidden sm:inline">AI Provider</span>
             </TabsTrigger>
             <TabsTrigger value="controls" className="gap-2">
               <Zap className="w-4 h-4" />
@@ -50,6 +55,11 @@ export default function SettingsPage() {
           {/* Privacy Tab */}
           <TabsContent value="privacy" className="space-y-6">
             <PrivacyCard />
+
+          {/* AI Provider Tab */}
+          <TabsContent value="ai-provider" className="space-y-6">
+            <AIProviderSelector />
+          </TabsContent>
 
             {/* Additional Privacy Info */}
             <Card className="p-6 space-y-4">

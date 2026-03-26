@@ -1,10 +1,5 @@
 // Aleo transaction submission logic for veilnet_ai_v7.aleo::submit_analysis
 
-import {
-  Transaction,
-  WalletAdapterNetwork,
-} from '@demox-labs/aleo-wallet-adapter-base';
-
 const DEFAULT_FEE_MICRO_CREDITS = 750_000;
 
 // Aleo field prime
@@ -133,15 +128,14 @@ export async function submitToAleo({
   timestamp,
   publicKey,
 }: {
-  requestTransaction?: (tx: Transaction) => Promise<string>;
-  requestExecution?: (tx: Transaction) => Promise<string>;
+  requestTransaction?: (options: any) => Promise<any>;
+  requestExecution?: (options: any) => Promise<any>;
   documentHash: string;
   analysisHash: string;
   riskScore: number;
   timestamp: number;
   publicKey: string;
 }): Promise<string> {
-
   // Always prefer requestTransaction — correct for async on-chain transitions
   const execute = requestTransaction ?? requestExecution;
 
@@ -195,23 +189,26 @@ export async function submitToAleo({
     console.log('   Fee (microcredits):', DEFAULT_FEE_MICRO_CREDITS);
     console.log('   ℹ️  No requestRecords needed — all inputs public, no private Records produced.');
 
-    const tx = Transaction.createTransaction(
-      publicKey,
-      WalletAdapterNetwork.TestnetBeta,
-      PROGRAM_ID,
-      'submit_analysis',
-      inputs,
-      DEFAULT_FEE_MICRO_CREDITS,
-      false // feePrivate: false → use public credits
-    );
-
     console.log('✅ Tx object ready, requesting execution...');
-    const transactionId = await execute(tx);
+    const result = await execute({
+      program: PROGRAM_ID,
+      function: 'submit_analysis',
+      inputs,
+      fee: DEFAULT_FEE_MICRO_CREDITS,
+      privateFee: false,
+    });
+
+    const transactionId = typeof result === 'string' ? result : result?.transactionId;
+
+    if (!transactionId) {
+      throw new Error('Transaction submission failed: No transaction ID returned from wallet.');
+    }
 
     console.log('✅ Transaction submitted!');
     console.log('   Initial ID from wallet:', transactionId);
 
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transactionId);
+    const isShieldId = transactionId.startsWith('shield_');
     const isAleoTxId = transactionId.startsWith('at1') && transactionId.length > 60;
 
     if (isAleoTxId) {
@@ -220,8 +217,8 @@ export async function submitToAleo({
       return transactionId;
     }
 
-    if (isUUID) {
-      console.log('⏳ Wallet returned a UUID — polling blockchain for real transaction ID...');
+    if (isUUID || isShieldId) {
+      console.log('⏳ Wallet returned a temporary ID — polling blockchain for real transaction ID...');
       console.log('   This is normal. Aleo ZK proofs take 30–120 seconds to finalize.');
 
       const realTxId = await pollForRealTransactionId(transactionId);
@@ -231,7 +228,7 @@ export async function submitToAleo({
         console.log('   Explorer: https://testnet.explorer.provable.com/transaction/' + realTxId);
         return realTxId;
       } else {
-        // Don't return UUID - keep polling or throw error
+        // Don't return temporary ID - throw error with helpful message
         throw new Error('Transaction submitted but real transaction ID not found yet. Please check the explorer manually or try again in a few minutes.');
       }
     }
