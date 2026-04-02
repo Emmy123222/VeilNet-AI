@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Image, Brain, Shield, CheckCircle } from 'lucide-react'
+import { FileText, Image, Brain, Shield, CheckCircle, BarChart3 } from 'lucide-react'
 import { WalletMultiButton } from '@provablehq/aleo-wallet-adaptor-react-ui'
 import { useRouter } from 'next/navigation'
 import { useWalletPersistence } from '@/hooks/use-wallet-persistence'
@@ -124,7 +124,7 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <Link href="/upload">
                   <Button className="w-full h-20 flex-col" variant="outline">
                     <FileText className="h-6 w-6 mb-2" />
@@ -135,6 +135,12 @@ export default function HomePage() {
                   <Button className="w-full h-20 flex-col" variant="outline">
                     <FileText className="h-6 w-6 mb-2" />
                     Batch Analysis
+                  </Button>
+                </Link>
+                <Link href="/analytics">
+                  <Button className="w-full h-20 flex-col" variant="outline">
+                    <BarChart3 className="h-6 w-6 mb-2" />
+                    Analytics
                   </Button>
                 </Link>
                 <Link href="/verify-proof">
@@ -278,6 +284,7 @@ export default function HomePage() {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <Link href="/upload" className="block hover:text-foreground transition-colors">Upload & Analyze</Link>
                 <Link href="/batch-analyze" className="block hover:text-foreground transition-colors">Batch Analysis</Link>
+                <Link href="/analytics" className="block hover:text-foreground transition-colors">Analytics</Link>
                 <Link href="/verify-proof" className="block hover:text-foreground transition-colors">Verify Proof</Link>
                 <Link href="/dashboard" className="block hover:text-foreground transition-colors">Dashboard</Link>
               </div>

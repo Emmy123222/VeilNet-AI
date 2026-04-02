@@ -1,12 +1,13 @@
 # VeilNet AI - Private AI Inference Infrastructure
 
-VeilNet AI is a decentralized privacy infrastructure that enables AI models to run on sensitive user data without exposing raw inputs. Built on Aleo's zero-knowledge blockchain, VeilNet provides private AI inference, encrypted data storage, verifiable outputs, and trustless computation proofs.
+VeilNet AI is a decentralized privacy infrastructure that provides private AI analysis with cryptographic verification. Built on Aleo's zero-knowledge blockchain, VeilNet enables document analysis where only cryptographic hashes and risk scores are stored on-chain, never the raw document content.
 
 ## 🚀 Features
 
 - **Real AI Analysis**: Powered by OpenAI GPT-4o-mini for genuine document analysis
-- **Private AI Inference**: Run AI models on encrypted data without exposing sensitive information
-- **Zero-Knowledge Proofs**: Cryptographic verification of AI analysis without revealing input data
+- **Private AI Analysis**: Document analysis with cryptographic proof generation
+- **Local AI Option**: Run AI models entirely on your machine with Ollama (zero data transmission)
+- **Zero-Knowledge Proofs**: Cryptographic verification of analysis results without revealing document content
 - **Aleo Blockchain Integration**: Immutable proof storage and verification on Aleo network
 - **End-to-End Encryption**: Client-side encryption ensures data privacy throughout the process
 - **Multiple Analysis Types**: Support for document analysis, deepfake detection, medical summaries, and more
@@ -21,8 +22,8 @@ VeilNet AI is a decentralized privacy infrastructure that enables AI models to r
 - **Proof Verification**: Blockchain proof verification system
 
 ### Backend Services
-- **AI Inference Layer**: Secure processing of encrypted data
-- **Privacy Layer**: Client-side encryption and secure data handling
+- **AI Analysis Layer**: Document processing with hash-based privacy protection
+- **Privacy Layer**: Client-side hashing and secure proof generation
 - **Aleo Integration**: Smart contract interactions and proof generation
 
 ### Blockchain (Aleo)

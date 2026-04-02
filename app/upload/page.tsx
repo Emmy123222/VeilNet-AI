@@ -21,6 +21,7 @@ import { WalletTroubleshooting } from '@/components/wallet-troubleshooting'
 import { getWalletTroubleshootingInfo } from '@/lib/program-verification'
 import { StreamingAnalysisDisplay } from '@/components/streaming-analysis-display'
 import { AuthenticityScoreCard } from '@/components/authenticity-score-card'
+import { VideoAnalysisCard } from '@/components/video-analysis-card'
 import Link from 'next/link'
 
 interface AnalysisResult {
@@ -83,6 +84,9 @@ export default function UploadPage() {
   
   // Wave 4: AI Provider selection
   const [aiProvider, setAiProvider] = useState<'cloud' | 'local'>('cloud')
+  
+  // Wave 5: Analysis type selection
+  const [analysisMode, setAnalysisMode] = useState<'document' | 'image' | 'video'>('document')
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -386,8 +390,8 @@ export default function UploadPage() {
               <h1 className="text-3xl font-bold">Upload & Analyze</h1>
             </div>
             <p className="text-muted-foreground">
-              🔒 TRUE PRIVACY: Documents analyzed entirely in your browser. 
-              Only cryptographic proofs submitted to Aleo blockchain via Shield Wallet.
+              🔒 PRIVACY OPTIONS: Choose Cloud AI (document sent to Groq for analysis) or 
+              Local AI (Ollama - zero data transmission). Only cryptographic proofs submitted to Aleo blockchain via Shield Wallet.
             </p>
           </div>
           
@@ -444,46 +448,87 @@ export default function UploadPage() {
         {/* Main Content - Rest unchanged */}
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="space-y-6">
-            {/* Wave 4: AI Provider Selection */}
+            {/* Wave 5: Analysis Mode Selection */}
             <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                AI Provider
+                Analysis Type
               </h3>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button
-                  variant={aiProvider === 'cloud' ? 'default' : 'outline'}
+                  variant={analysisMode === 'document' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setAiProvider('cloud')}
+                  onClick={() => setAnalysisMode('document')}
                   className="flex-1"
                 >
-                  ☁️ Cloud (Groq)
+                  📄 Document
                 </Button>
                 <Button
-                  variant={aiProvider === 'local' ? 'default' : 'outline'}
+                  variant={analysisMode === 'image' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setAiProvider('local')}
+                  onClick={() => setAnalysisMode('image')}
                   className="flex-1"
                 >
-                  💻 Local (Ollama)
+                  🖼️ Image
+                </Button>
+                <Button
+                  variant={analysisMode === 'video' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setAnalysisMode('video')}
+                  className="flex-1"
+                >
+                  🎥 Video
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {aiProvider === 'local' 
-                  ? '🔒 Zero-trust: AI runs on your machine. Configure in Settings.'
-                  : '⚡ Fast cloud AI with privacy-preserving analysis.'}
-              </p>
             </div>
+
+            {/* Wave 4: AI Provider Selection */}
+            {analysisMode !== 'video' && (
+              <div className="bg-card border border-border rounded-lg p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  AI Provider
+                </h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant={aiProvider === 'cloud' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAiProvider('cloud')}
+                    className="flex-1"
+                  >
+                    ☁️ Cloud (Groq)
+                  </Button>
+                  <Button
+                    variant={aiProvider === 'local' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setAiProvider('local')}
+                    className="flex-1"
+                  >
+                    💻 Local (Ollama)
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {aiProvider === 'local' 
+                    ? '🔒 Zero data transmission: AI runs entirely on your machine.'
+                    : '⚡ Cloud AI: Document sent to Groq for analysis, results hashed for blockchain.'}
+                </p>
+              </div>
+            )}
             
-            <FileUploadForm
-              selectedFile={selectedFile}
-              analysisType={analysisType}
-              onFileSelect={handleFileSelect}
-              onAnalysisTypeChange={setAnalysisType}
-              onAnalyze={handleAnalyze}
-              analyzing={analyzing}
-              connected={connected}
-            />
+            {/* Analysis Components */}
+            {analysisMode === 'video' ? (
+              <VideoAnalysisCard />
+            ) : (
+              <FileUploadForm
+                selectedFile={selectedFile}
+                analysisType={analysisType}
+                onFileSelect={handleFileSelect}
+                onAnalysisTypeChange={setAnalysisType}
+                onAnalyze={handleAnalyze}
+                analyzing={analyzing}
+                connected={connected}
+              />
+            )}
 
             {analyzing && (
               <ProofProgressTracker

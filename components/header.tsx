@@ -35,6 +35,12 @@ export function Header() {
               Batch Analysis
             </Link>
             <Link
+              href="/analytics"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Analytics
+            </Link>
+            <Link
               href="/verify-proof"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >

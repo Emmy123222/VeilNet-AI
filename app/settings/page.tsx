@@ -80,12 +80,11 @@ export default function SettingsPage() {
 
                 <div className="border-t border-border pt-4">
                   <h4 className="font-medium text-foreground mb-2">
-                    2. Zero-Knowledge Inference
+                    2. Hash-Based Privacy Protection
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    AI models process your encrypted data without ever
-                    decrypting it. Results are generated from encrypted inputs
-                    using specialized cryptographic techniques.
+                    Only cryptographic hashes and analysis results are transmitted.
+                    Raw document content stays in your browser or runs locally with Ollama.
                   </p>
                 </div>
 

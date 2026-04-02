@@ -23,8 +23,8 @@ export function PrivacyCard() {
     },
     {
       icon: <Eye className="w-5 h-5" />,
-      title: 'Zero-Knowledge Inference',
-      description: 'AI models never see your raw data, only encrypted inputs',
+      title: 'Hash-Based Privacy',
+      description: 'Only document hashes transmitted, raw content stays local',
       status: 'active',
     },
     {

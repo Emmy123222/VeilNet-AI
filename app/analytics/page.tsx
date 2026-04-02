@@ -1,23 +1,21 @@
 'use client'
 
-import { useState } from 'react'
 import { useWallet } from '@provablehq/aleo-wallet-adaptor-react'
 import { Header } from '@/components/header'
-import { EnhancedBatchUpload } from '@/components/enhanced-batch-upload'
+import { AnalyticsDashboard } from '@/components/analytics-dashboard'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ArrowLeft, Shield, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Shield, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 
-export default function BatchAnalyzePage() {
+export default function AnalyticsPage() {
   const { connected, address: publicKey } = useWallet()
-  const [error, setError] = useState<string | null>(null)
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -28,10 +26,13 @@ export default function BatchAnalyzePage() {
                   Back to Home
                 </Button>
               </Link>
-              <h1 className="text-3xl font-bold">Batch Analysis</h1>
+              <h1 className="text-3xl font-bold flex items-center">
+                <BarChart3 className="h-8 w-8 mr-3" />
+                Analytics Dashboard
+              </h1>
             </div>
             <p className="text-muted-foreground">
-              🚀 Analyze multiple documents at once with cryptographic proofs for each.
+              📊 Comprehensive insights into your AI analysis history and trends
             </p>
           </div>
         </div>
@@ -45,21 +46,28 @@ export default function BatchAnalyzePage() {
               <Link href="/" className="underline font-medium hover:text-blue-800">
                 go to the home page
               </Link>{' '}
-              to connect your Shield Wallet first.
+              to connect your Shield Wallet to view your analytics.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Error Display */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        {/* Analytics Dashboard */}
+        {connected ? (
+          <AnalyticsDashboard walletAddress={publicKey || ''} />
+        ) : (
+          <div className="text-center py-12">
+            <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+            <p className="text-muted-foreground mb-4">
+              Connect your Shield Wallet to view personalized analytics and insights
+            </p>
+            <Link href="/">
+              <Button>
+                Connect Wallet
+              </Button>
+            </Link>
+          </div>
         )}
-
-        {/* Batch Upload Form */}
-        <EnhancedBatchUpload maxFiles={50} />
       </div>
     </div>
   )

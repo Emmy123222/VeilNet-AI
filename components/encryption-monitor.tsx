@@ -50,7 +50,7 @@ export function EncryptionMonitor({
       {
         stage: 'analyzing',
         progress: 70,
-        message: 'Running private AI inference on encrypted data',
+        message: 'Generating cryptographic proofs from analysis results',
       },
       {
         stage: 'proving',
